@@ -1,0 +1,25 @@
+{
+  "name": "thrift-node-core",
+  "version": "1.0.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wenshaoyan/thrift-node-core"
+  },
+  "description": "基于thrift的后端server的框架",
+  "keywords": [
+    "thrift",
+    "nodejs"
+  ],
+  "author": "wenshao314106@163.com",
+  "license": "MIT",
+  "main": "index.js",
+  "engines": {
+    "node": ">=7.7.0"
+  },
+  "dependencies": {
+    "function-interceptor": "^1.0.1",
+    "thrift": "^0.10.0",
+    "zk-curator": "^1.0.0",
+    "generic-pool": "^3.2.0"
+  }
+}
