@@ -5,7 +5,6 @@
 const thrift = require('thrift');
 const transport = thrift.TFramedTransport;
 const protocol = thrift.TBinaryProtocol;
-const ConnectZk = require('./connect-zk-helper');
 const genericPool = require('generic-pool');
 const _poolTagObject = {};
 const Interceptor = require('function-interceptor');
@@ -127,6 +126,7 @@ const Server = (function () {
         set logger(value) {
             if (value && value.info instanceof Function) this[_isPrintLog] = true;
             this._logger = value;
+
         }
 
 
