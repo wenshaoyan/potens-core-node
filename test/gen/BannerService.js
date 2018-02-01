@@ -9,7 +9,7 @@ var thrift = require('thrift');
 var Thrift = thrift.Thrift;
 var Q = thrift.Q;
 
-var bean_ttypes = require('./bean_types');
+var bean_ttypes = require('../../gen-nodejs/bean_types');
 
 
 var ttypes = require('./service_types');

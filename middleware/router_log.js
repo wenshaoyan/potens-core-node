@@ -3,10 +3,11 @@
  * 路由日志模块
  */
 'use strict';
-const logger = getLogger('router');
 const reIpv4 = '.*:.*:.*:(.*)';
+const log4js = require('log4js');
 
 function routerLog(opt) {
+    const logger = log4js.getLogger()
     return async function (ctx, next) {
         const input = new Date().getTime();
         await next();

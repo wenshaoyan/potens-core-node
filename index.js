@@ -12,14 +12,15 @@ const response = require('./middleware/response');
 const routerLog = require('./middleware/router_log');
 
 
-module.exports = {
-    formatQuery, AbstractSqlBean, getThrift, start, response, routerLog
-};
-const thriftServerMap = new Map();
 
 const getThrift = function (name) {
     return thriftServerMap.get(name);
 };
+
+
+const thriftServerMap = new Map();
+
+
 const checkParams = (option) => {
     if (!option || typeof option !== 'object') {
         throw new Error('options error');
@@ -30,7 +31,13 @@ const checkParams = (option) => {
     if (!option.zk.url || typeof option.zk.url !== 'string') {
         throw new Error('options.zk.url error');
     }
-    if (!option.zk.registerPath || typeof option.zk.registerPath !== 'string') {
+    if (option.zk.registerPath) {
+        if (typeof option.zk.registerPath === 'string') {
+            option.zk.registerPath = [option.zk.registerPath];
+        } else if (!(option.zk.registerPath instanceof Array)) {
+            throw new Error('options.zk.registerPath error');
+        }
+    } else {
         throw new Error('options.zk.registerPath error');
     }
     if (!option.zk.registerId || typeof option.zk.registerId !== 'string') {
@@ -42,9 +49,6 @@ const checkParams = (option) => {
     if (!option.thriftGlobal || typeof option.thriftGlobal !== 'object') {
         throw new Error('options.thriftGlobal error');
     }
-    if (!option.port || typeof option.port !== 'object') {
-        throw new Error('options.port error');
-    }
     if (!option.thrift || typeof option.thrift !== 'object') {
         option.thrift = {};
     }
@@ -53,13 +57,14 @@ const checkParams = (option) => {
     }
 };
 
-async function main(options, client) {
-    try {
-        checkParams(options);
-    } catch (e) {
-        console.log(e);
-        process.exit();
-    }
+/**
+ * 连接zk 并创建thrift连接
+ * @param options
+ * @param client
+ * @return {Promise<void>}
+ */
+async function startZK(options, client) {
+
     for (let key in options.thrift) {
         try {
             const value = options.thrift[key];
@@ -88,24 +93,55 @@ async function main(options, client) {
             connectZk.setServer(myServer);
             thriftServerMap.set(name, myServer);
 
+        } catch (e) {
+            if (options.core_log) options.core_log.error(e);
+        }
+    }
+    try {
+        for (let v of options.zk.registerPath) {
+            v = v.replace(/^\//, '');
             const path = await client.create()
             .withMode(CuratorFrameworkFactory.EPHEMERAL)
+            .creatingParentContainersIfNeeded()
             .isAbsoluteAddress()
-            .forPath(options.zk.registerId, options.zk.registerData);
-        } catch (e) {
-            console.log(e)
+            .forPath(v + '/' + options.zk.registerId, options.zk.registerData);
         }
-
+    } catch (e) {
+        if (options.core_log) options.core_log.error(e);
+        process.exit();
     }
+
 }
 
+/**
+ * 启动web
+ * @param options
+ */
+const startWeb = (options) => {
+    const koa = require('./web/koa-web');
+    if (options.web && options.web.app && options.web.port) {
+        koa.start(options.web.app, options.web.port);
+    }
+
+};
+
 const start = (options, callback) => {
+    try {
+        checkParams(options);
+    } catch (e) {
+        if (options.core_log) options.core_log.error(e);
+        process.exit();
+    }
     const client = CuratorFrameworkFactory.builder()
     .connectString(options.zk.url)
-    .namespace(options.zk.registerPath)
     .build(async function () {
-        main(options, client);
+        await startZK(options, client);
+        startWeb(options);
         callback();
     });
     client.start();
+};
+
+module.exports = {
+    formatQuery, AbstractSqlBean, getThrift, start, response, routerLog
 };

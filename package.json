@@ -1,6 +1,6 @@
 {
   "name": "thrift-node-core",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "repository": {
     "type": "git",
     "url": "https://github.com/wenshaoyan/thrift-node-core"
@@ -18,8 +18,12 @@
   },
   "dependencies": {
     "function-interceptor": "^1.0.1",
+    "generic-pool": "^3.2.0",
     "thrift": "^0.10.0",
-    "zk-curator": "^1.0.0",
-    "generic-pool": "^3.2.0"
+    "zk-curator": "^1.0.1"
+  },
+  "devDependencies": {
+    "koa": "^2.2.0",
+    "log4js": "^2.3.3"
   }
 }
