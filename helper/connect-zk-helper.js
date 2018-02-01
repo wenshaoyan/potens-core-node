@@ -3,15 +3,14 @@
  */
 'use strict';
 class ConnectZk {
-    constructor(_parentPath, _client,_logger) {
+    constructor(_parentPath, _client,_logger, _name) {
         this._parentPath = _parentPath;
         this._preNodeList = null;
         this._client = _client;
         this._server = null;
         this._logger = false;
+        this._name = _name;
         if (_logger && _logger.info instanceof Function) this._logger = _logger;
-        this._logger = _logger;
-
     }
 
     get parentPath() {
@@ -61,12 +60,19 @@ class ConnectZk {
         this._logger = value;
     }
 
+    get name() {
+        return this._name;
+    }
+
+    set name(value) {
+        this._name = value;
+    }
+
     async getServer() {
         let childrenData;
         try{
             childrenData = await this.getChildNodeList();
         }catch (e){ // 指定节点不存在
-            console.log(e)
             throw new Error(`${this.parentPath} not exist`);
         }
         let serverAddress;
@@ -122,7 +128,7 @@ class ConnectZk {
             if (this.server && typeof this.server === 'object') {
                 this.server.close();
             } else {
-                this.logger.warn(this.parentPath+' 没有子节点');
+                if (this.logger) this.logger.warn(`${this.name}:${this.parentPath} 没有子节点`);
             }
         }
         return childrenData;
@@ -147,7 +153,7 @@ class ConnectZk {
             }
             return {data: childData};
         }catch (e){
-            console.log(e)
+            throw e;
         }
     }
 

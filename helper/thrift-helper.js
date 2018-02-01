@@ -37,6 +37,7 @@ const Server = (function () {
             this._max = 10;
             this._client = null;
             this[_isPrintLog] = false;
+            this._name = '';
             this._pool = null;
             this[_poolUuid] = new Date().getTime()+Math.floor(Math.random()*1000);
             _poolTagObject[this[_poolUuid]] = {}
@@ -138,6 +139,18 @@ const Server = (function () {
             this._pool = value;
         }
 
+        get name() {
+            return this._name;
+        }
+
+        set name(value) {
+            this._name = value;
+        }
+
+        setName(value) {
+            this.name = value;
+            return this;
+        }
         setAddress(address) {
             if (typeof address === 'string' && address.indexOf(':') !== -1) {
                 const split = address.split(':');
@@ -191,6 +204,7 @@ const Server = (function () {
             const cPort = this.port;
             const cServerObject = this.serverObject;
             const interceptor = new Interceptor(cServerObject.Client);
+            const logger = this.logger;
 
             interceptor.monitorPrototypeRe(/^send_/, function (data) {
                 if (!this.timer) this.timer = {};
@@ -221,7 +235,7 @@ const Server = (function () {
                             protocol: protocol
                         });
                         con.on('error', (err) => {
-                            logger.error(err);
+                            if (logger) logger.error(err);
                             reject(err);
                             // this.connectionStatus = 2;
                             // if (this.errorCallback instanceof Function) this.errorCallback(err);
@@ -239,7 +253,7 @@ const Server = (function () {
             };
             this.pool = genericPool.createPool(factory, {max: this.max, min: this.min});
             this.connectionStatus = 1;
-            if (this[_isPrintLog]) this.logger.info(`connect ${this.host}:${this.port} `);
+            if (this[_isPrintLog]) this.logger.info(`${this.name}:connect ${this.host}:${this.port} `);
         }
 
         getClient(uuid) {

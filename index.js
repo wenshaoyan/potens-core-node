@@ -45,6 +45,7 @@ const checkParams = (option) => {
         option.thrift[key] = Object.assign(option.thrift[key], option.thriftGlobal);
     }
 };
+
 async function main(options, client) {
     try {
         checkParams(options);
@@ -57,7 +58,7 @@ async function main(options, client) {
             const value = options.thrift[key];
             const name = key;
             let parentPath = value.path;
-            const connectZk = new connectZkHelper(parentPath, client);
+            const connectZk = new connectZkHelper(parentPath, client, value.log, name);
             const address = await connectZk.getServer();    // 获取连接dal的地址
             const pool = {
                 min: 1,
@@ -71,11 +72,11 @@ async function main(options, client) {
             }
             // 创建thrift的连接
             let myServer = await new ThriftHelper()
+            .setName(name)
             .setLogger(value.log)
             .setServer(value.object)
-            .setAddress(address.data)
             .setPoolNumber(pool.min, pool.max)
-            .connect();
+            .setAddress(address.data);
             // 监听连接的变化 并修改
             connectZk.setServer(myServer);
             thriftServerMap.set(name, myServer);
@@ -90,6 +91,7 @@ async function main(options, client) {
 
     }
 }
+
 const start = (options, callback) => {
     const client = CuratorFrameworkFactory.builder()
     .connectString(options.zk.url)

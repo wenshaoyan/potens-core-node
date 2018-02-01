@@ -13,23 +13,23 @@ const serviceConfig = {
     },
     "thrift": {
         "UserService": {
-            "path": "/dal/develop/UserService",
+            "path": "/thrift/develop/UserService",
             "object": require('../gen-nodejs/UserService')
         },
         "BannerService": {
-            "path": "/dal/develop/BannerService",
+            "path": "/thrift/develop/BannerService",
             "object": require('../gen-nodejs/BannerService')
         },
         "ClientService": {
-            "path": "/dal/develop/ClientService",
+            "path": "/thrift/develop/ClientService",
             "object": require('../gen-nodejs/ClientService')
         },
         "CourseService": {
-            "path": "/dal/develop/CourseService",
+            "path": "/thrift/develop/CourseService",
             "object": require('../gen-nodejs/CourseService')
         },
         "CommonService": {
-            "path": "/dal/develop/CommonService",
+            "path": "/thrift/develop/CommonService",
             "object": require('../gen-nodejs/CommonService')
         }
     },
@@ -40,6 +40,7 @@ const serviceConfig = {
     }
 };
 const {start, getThrift} = require('../index');
-start(serviceConfig, function () {
-   console.info('=========')
-});
+start(serviceConfig, main);
+function main() {
+    console.log('==============')
+}
