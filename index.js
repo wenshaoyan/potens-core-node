@@ -31,21 +31,6 @@ const checkParams = (option) => {
     if (!option.zk.url || typeof option.zk.url !== 'string') {
         throw new Error('options.zk.url error');
     }
-    if (option.zk.registerPath) {
-        if (typeof option.zk.registerPath === 'string') {
-            option.zk.registerPath = [option.zk.registerPath];
-        } else if (!(option.zk.registerPath instanceof Array)) {
-            throw new Error('options.zk.registerPath error');
-        }
-    } else {
-        throw new Error('options.zk.registerPath error');
-    }
-    if (!option.zk.registerId || typeof option.zk.registerId !== 'string') {
-        throw new Error('options.zk.registerId error');
-    }
-    if (!option.zk.registerData || typeof option.zk.registerData !== 'string') {
-        throw new Error('options.zk.registerData error');
-    }
     if (!option.thriftGlobal || typeof option.thriftGlobal !== 'object') {
         throw new Error('options.thriftGlobal error');
     }
@@ -98,14 +83,17 @@ async function startZK(options, client) {
         }
     }
     try {
-        for (let v of options.zk.registerPath) {
-            v = v.replace(/^\//, '');
-            const path = await client.create()
-            .withMode(CuratorFrameworkFactory.EPHEMERAL)
-            .creatingParentContainersIfNeeded()
-            .isAbsoluteAddress()
-            .forPath(v + '/' + options.zk.registerId, options.zk.registerData);
+        if (options.zk.register instanceof Array) {
+            for (let v of options.zk.register) {
+                v.path = v.path.replace(/^\//, '');
+                const path = await client.create()
+                .withMode(CuratorFrameworkFactory.EPHEMERAL)
+                .creatingParentContainersIfNeeded()
+                .isAbsoluteAddress()
+                .forPath(v.path + '/' + v.id, v.data);
+            }
         }
+
     } catch (e) {
         if (options.core_log) options.core_log.error(e);
         process.exit();

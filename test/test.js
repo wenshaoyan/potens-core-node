@@ -27,9 +27,13 @@ const serviceConfig = {
     "core_log": log4js.getLogger('core'),
     "zk": {
         "url": process.env.ZK_URL,
-        "registerPath": ["/develop/http/admin", "/develop-1.0.0/http/amin" ],
-        "registerId": "127.0.0.1:90",
-        "registerData": "111"
+        "register": [
+            {
+                "path": "/develop/http/admin",
+                "id": "127.0.0.1:9000",
+                "data": "111"
+            }
+        ]
     },
     "thriftGlobal": {
         "timeout": 10000,
