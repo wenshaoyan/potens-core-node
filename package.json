@@ -1,6 +1,6 @@
 {
   "name": "thrift-node-core",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "repository": {
     "type": "git",
     "url": "https://github.com/wenshaoyan/thrift-node-core"

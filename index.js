@@ -8,6 +8,13 @@ const AbstractSqlBean = require('./bean/AbstractSqlBean');
 const ThriftHelper = require('./helper/thrift-helper');
 const connectZkHelper = require('./helper/connect-zk-helper');
 const {CuratorFrameworkFactory} = require('zk-curator');
+const response = require('./middleware/response');
+const routerLog = require('./middleware/router_log');
+
+
+module.exports = {
+    formatQuery, AbstractSqlBean, getThrift, start, response, routerLog
+};
 const thriftServerMap = new Map();
 
 const getThrift = function (name) {
@@ -102,8 +109,3 @@ const start = (options, callback) => {
     });
     client.start();
 };
-
-module.exports = {
-    formatQuery, AbstractSqlBean, getThrift, start
-};
-
