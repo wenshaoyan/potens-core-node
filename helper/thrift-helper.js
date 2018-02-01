@@ -8,7 +8,8 @@ const protocol = thrift.TBinaryProtocol;
 const genericPool = require('generic-pool');
 const _poolTagObject = {};
 const Interceptor = require('function-interceptor');
-class TimeoutException{
+
+class TimeoutException {
     constructor() {
         this.code = null;
         this.message = null;
@@ -17,6 +18,7 @@ class TimeoutException{
         this.fullMessage = null;
         this.name = 'TimeoutException';
     }
+
     static name() {
         return 'TimeoutException';
     }
@@ -25,6 +27,7 @@ class TimeoutException{
 const Server = (function () {
     const _isPrintLog = Symbol('_isPrintLog');
     const _poolUuid = Symbol('_poolUuid');
+
     class Server {
         constructor() {
             this._host = '127.0.0.1';
@@ -39,7 +42,7 @@ const Server = (function () {
             this[_isPrintLog] = false;
             this._name = '';
             this._pool = null;
-            this[_poolUuid] = new Date().getTime()+Math.floor(Math.random()*1000);
+            this[_poolUuid] = new Date().getTime() + Math.floor(Math.random() * 1000);
             _poolTagObject[this[_poolUuid]] = {}
         }
 
@@ -151,6 +154,7 @@ const Server = (function () {
             this.name = value;
             return this;
         }
+
         setAddress(address) {
             if (typeof address === 'string' && address.indexOf(':') !== -1) {
                 const split = address.split(':');
@@ -210,7 +214,8 @@ const Server = (function () {
                 if (!this.timer) this.timer = {};
                 const id = this.seqid();
                 this.timer[id] = setTimeout(() => {
-                    const callback = this._reqs[id] || function() {};
+                    const callback = this._reqs[id] || function () {
+                    };
                     delete this._reqs[id];
                     const re = new TimeoutException();
                     re.code = 810;
@@ -219,12 +224,12 @@ const Server = (function () {
                     re.methodName = data.name;
                     re.fullMessage = 'timeout';
                     callback(re)
-                },10000)
-            });
+                }, 10000)
+            }, undefined, true);
             interceptor.monitorPrototypeRe(/^recv_/, function (data) {
                 const id = this.seqid();
                 if (this.timer && this.timer[id]) clearTimeout(this.timer[id]);
-            });
+            }, undefined, true);
             // this._client = thrift.createClient(this.serverObject, this.connection);
             const factory = {
                 create: function () {
@@ -316,6 +321,7 @@ const Server = (function () {
             }
         }
     }
+
     return Server;
 })();
 
