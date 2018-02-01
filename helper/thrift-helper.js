@@ -225,11 +225,11 @@ const Server = (function () {
                     re.fullMessage = 'timeout';
                     callback(re)
                 }, 10000)
-            }, undefined, true);
+            }, undefined, false);
             interceptor.monitorPrototypeRe(/^recv_/, function (data) {
                 const id = this.seqid();
                 if (this.timer && this.timer[id]) clearTimeout(this.timer[id]);
-            }, undefined, true);
+            }, undefined, false);
             // this._client = thrift.createClient(this.serverObject, this.connection);
             const factory = {
                 create: function () {
