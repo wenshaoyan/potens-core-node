@@ -8,7 +8,6 @@ const protocol = thrift.TBinaryProtocol;
 const genericPool = require('generic-pool');
 const _poolTagObject = {};
 const Interceptor = require('function-interceptor');
-
 class TimeoutException {
     constructor() {
         this.code = null;
@@ -23,6 +22,8 @@ class TimeoutException {
         return 'TimeoutException';
     }
 }
+
+
 
 const Server = (function () {
     const _isPrintLog = Symbol('_isPrintLog');
@@ -44,6 +45,9 @@ const Server = (function () {
             this._pool = null;
             this[_poolUuid] = new Date().getTime() + Math.floor(Math.random() * 1000);
             _poolTagObject[this[_poolUuid]] = {}
+            this._ProxyClient = function () {
+
+            };
         }
 
 
@@ -178,6 +182,17 @@ const Server = (function () {
 
         setServer(_serverObject) {
             this.serverObject = _serverObject;
+            const than = this;
+            for (const f in _serverObject.Client.prototype) {
+                this._ProxyClient[f] = function() {
+                    const args = arguments;
+                    return than.getClient().then(function(client) {
+                        if (client[f]) return client[f](...args);
+                        else return Promise.reject(f + 'not in client');
+                    });
+
+                }
+            }
             return this;
         }
 
@@ -209,7 +224,7 @@ const Server = (function () {
             const cServerObject = this.serverObject;
             const interceptor = new Interceptor(cServerObject.Client);
             const logger = this.logger;
-
+            const than = this;
             interceptor.monitorPrototypeRe(/^send_/, function (data) {
                 if (!this.timer) this.timer = {};
                 const id = this.seqid();
@@ -227,6 +242,7 @@ const Server = (function () {
                 }, 10000)
             }, undefined, false);
             interceptor.monitorPrototypeRe(/^recv_/, function (data) {
+                than.pool.release(this);
                 const id = this.seqid();
                 if (this.timer && this.timer[id]) clearTimeout(this.timer[id]);
             }, undefined, false);
@@ -261,7 +277,12 @@ const Server = (function () {
             if (this[_isPrintLog]) this.logger.info(`${this.name}:connect ${this.host}:${this.port} `);
         }
 
-        getClient(uuid) {
+        /**
+         * 从连接池获取连接 废弃  设计思想仅供参考
+         * @param uuid                  唯一码
+         * @return {Promise.<Client>}   返回客户端
+         */
+        _getClientOld(uuid) {
             if (!uuid || typeof uuid !== 'string') {
                 throw new Error('uuid error');
             }
@@ -279,7 +300,25 @@ const Server = (function () {
             }).catch(e => {
                 throw e;
             });
-
+        }
+        /**
+         * 从连接池获取连接
+         * @return {Promise.<Client>}   返回客户端
+         */
+        getClient() {
+            const resourcePromise = this.pool.acquire();
+            return resourcePromise.then(client => {
+                return client;
+            }).catch(e => {
+                throw e;
+            });
+        }
+        /**
+         * 获取代理客户端
+         * @return {_ProxyClient}    代理客户端
+         */
+        getProxyClient() {
+            return this._ProxyClient;
         }
 
         // 清空连接池
@@ -287,7 +326,6 @@ const Server = (function () {
             if (this.pool) {
                 this.pool.clear();
                 this.pool = null;
-
             }
         }
 
@@ -307,8 +345,11 @@ const Server = (function () {
             throw new Error('func not is Logger object');
 
         }
-
-        release(uuid) {
+        /**
+         * 从连接池释放连接 废弃  设计思想仅供参考
+         * @param uuid                  唯一码
+         */
+        _release(uuid) {
             if (!uuid || typeof uuid !== 'string') {
                 throw new Error('uuid error');
             }

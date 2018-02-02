@@ -69,8 +69,15 @@ const serviceConfig = {
         "app": require('./app')
     }
 };
-const {start, getThrift} = require('../index');
+const {start, getThrift, AbstractSqlBean} = require('../index');
 start(serviceConfig, main);
-function main() {
+async function main() {
     log4js.getLogger().info('==============')
+    try{
+        let client = await getThrift('CommonService').getProxyClient();
+        console.log(await client.topicBankSelect(new AbstractSqlBean({})));
+
+    }catch (e){
+        console.log(e)
+    }
 }
