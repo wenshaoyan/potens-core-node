@@ -48,6 +48,7 @@ const Server = (function () {
             this._ProxyClient = function () {
 
             };
+            this._interceptor = null;
         }
 
 
@@ -159,6 +160,15 @@ const Server = (function () {
             return this;
         }
 
+
+        get interceptor() {
+            return this._interceptor;
+        }
+
+        set interceptor(value) {
+            this._interceptor = value;
+        }
+
         setAddress(address) {
             if (typeof address === 'string' && address.indexOf(':') !== -1) {
                 const split = address.split(':');
@@ -182,6 +192,8 @@ const Server = (function () {
 
         setServer(_serverObject) {
             this.serverObject = _serverObject;
+            this.interceptor = new Interceptor(_serverObject.Client);
+
             const than = this;
             for (const f in _serverObject.Client.prototype) {
                 this._ProxyClient[f] = function() {
@@ -222,15 +234,17 @@ const Server = (function () {
             const cHost = this.host;
             const cPort = this.port;
             const cServerObject = this.serverObject;
-            const interceptor = new Interceptor(cServerObject.Client);
             const logger = this.logger;
             const than = this;
-            interceptor.monitorPrototypeRe(/^send_/, function (data) {
+            this.interceptor.restoreBack();
+            this.interceptor.init();
+
+            this.interceptor.monitorPrototypeRe(/^send_/, function (data) {
                 if (!this.timer) this.timer = {};
                 const id = this.seqid();
                 this.timer[id] = setTimeout(() => {
                     const callback = this._reqs[id] || function () {
-                    };
+                        };
                     delete this._reqs[id];
                     const re = new TimeoutException();
                     re.code = 810;
@@ -241,11 +255,12 @@ const Server = (function () {
                     callback(re)
                 }, 10000)
             }, undefined, false);
-            interceptor.monitorPrototypeRe(/^recv_/, function (data) {
+            this.interceptor.monitorPrototypeRe(/^recv_/, function (data) {
                 than.pool.release(this);
                 const id = this.seqid();
                 if (this.timer && this.timer[id]) clearTimeout(this.timer[id]);
             }, undefined, false);
+            this.interceptor.release();
             // this._client = thrift.createClient(this.serverObject, this.connection);
             const factory = {
                 create: function () {
