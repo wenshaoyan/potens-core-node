@@ -3,8 +3,10 @@
  * 业务层查询
  */
 'use strict';
-let services = {};
+let methods = {};
 let {getThrift} = require('../index');
+let {loadDirFiles} = require('../util/sys-util');
+const moduleName = 'method=query';
 /**
  * 创建任务
  * @param root      当前字段的上级对象 第一级为{}
@@ -30,7 +32,7 @@ async function createTask(root, fields, ctx) {
 
 /**
  * 执行任务
- * @param field     field为对应到的service中的对象
+ * @param field     field为对应到的method中的对象
  * @param name      field的名称
  * @param root      当前字段的上级对象 第一级为{}
  * @param ctx
@@ -38,13 +40,12 @@ async function createTask(root, fields, ctx) {
  */
 async function execTask(field, name, root, ctx) {
     let args = {};
-    if (!services[field.service]) {
-        console.error(field, field.service + ' not found');
-        throw new Error(field.service + ' not found');
+    if (!methods[field.method]) {
+        throw new Error(`${moduleName}:${field.method} not found`);
     }
-    const currentService = services[field.service];
-    if (currentService.args) {
-        for (const k in currentService.args) {
+    const currentmethod = methods[field.method];
+    if (currentmethod.args) {
+        for (const k in currentmethod.args) {
             args[k] = null;
         }
     }
@@ -52,23 +53,21 @@ async function execTask(field, name, root, ctx) {
         args = field.args;
     }
     const extend = {thrift: {}, http: {}};
-    if (typeof currentService === 'string') {
-        const v = currentService.thrift;
+    if (typeof currentmethod === 'string') {
+        const v = currentmethod.thrift;
         if (!getThrift(v)) {
-            console.error(`${v} not in thrift `);
-            throw new Error(`${v} not in thrift `);
+            throw new Error(`${moduleName}:${v} not in thrift`);
         }
         extend.thrift[v] = getThrift(v).getProxyClient();
-    } else if (currentService.thrift instanceof Array) {
-        for (const v of currentService.thrift) {
+    } else if (currentmethod.thrift instanceof Array) {
+        for (const v of currentmethod.thrift) {
             if (!getThrift(v)) {
-                console.error(`${v} not in thrift `);
-                throw new Error(`${v} not in thrift `);
+                throw new Error(`${moduleName}:${v} not in thrift`);
             }
             extend.thrift[v] = await getThrift(v).getProxyClient();
         }
     }
-    const newRoot = await currentService.resolve(root, args, extend, ctx);
+    const newRoot = await currentmethod.resolve(root, args, extend, ctx);
 
     for (const parent of newRoot) {
         if (field.fields) {
@@ -80,9 +79,10 @@ async function execTask(field, name, root, ctx) {
     }
     return newRoot;
 }
-function serviceQuery(opt) {
-    let jsonKey = 'serviceJson';
-    let graphqlKey = 'serviceGraphql';
+function methodQuery(opt) {
+    let jsonKey = 'methodJson';
+    let graphqlKey = 'methodGraphql';
+    const methods = {};
     if (typeof opt === 'object') {
         if (typeof opt.jsonKey === 'string') {
             jsonKey = opt.jsonKey;
@@ -90,15 +90,32 @@ function serviceQuery(opt) {
         if (typeof opt.graphqlKey === 'string') {
             graphqlKey = opt.graphqlKey;
         }
+        if (typeof opt.methodDir === 'string') {
+            const dirList = loadDirFiles(opt.methodDir);
+            for (const file of dirList) {
+                const fileObject = require(file);
+                for (const name in fileObject) {
+                    if (name in methods) {
+                        throw new Error(`${moduleName}:${name} is repeat, ${name}`);
+                    } else {
+                        methods[name] = fileObject[name];
+                    }
+                }
+            }
+        } else {
+            throw new Error(`${moduleName}:opt.methodDir error,${opt.methodDir}`);
+        }
+    } else {
+        throw new Error(`${moduleName}:opt error,${opt}`);
     }
     return async function (ctx, next) {
-        if (typeof ctx[graphqlKey] === 'string') {   // 将serviceGraphql转为serviceJson
+        if (typeof ctx[graphqlKey] === 'string') {   // 将methodGraphql转为methodJson
 
         }
-        if (typeof ctx[jsonKey] === 'object') {  // 用serviceJson去service中查询
+        if (typeof ctx[jsonKey] === 'object') {  // 用methodJson去method中查询
             ctx.body = await createTask({}, ctx[jsonKey], ctx);
         }
         await next();
     }
 }
-module.exports = serviceQuery;
+module.exports = methodQuery;

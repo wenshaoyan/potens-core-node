@@ -10,10 +10,10 @@ const connectZkHelper = require('./helper/connect-zk-helper');
 const {CuratorFrameworkFactory} = require('zk-curator');
 const response = require('./middleware/response');
 const routerLog = require('./middleware/router-log');
-const {getUuid} = require('./util/sys-util');
-const serviceQuery = require('./middleware/service-query');
-
-
+const {getUuid, loadDirFiles} = require('./util/sys-util');
+const methodQuery = require('./middleware/method-query');
+const LogDefault = require('./util/log-default-util');
+let coreLogger = new LogDefault();
 
 const getThrift = function (name) {
     return thriftServerMap.get(name);
@@ -54,7 +54,7 @@ const checkParams = (option) => {
  * @return {Promise<void>}
  */
 async function startZK(options, client) {
-
+    coreLogger = options.core_log;
     for (let key in options.thrift) {
         try {
             const value = options.thrift[key];
@@ -74,17 +74,17 @@ async function startZK(options, client) {
             }
             // 创建thrift的连接
             let myServer = await new ThriftHelper()
-            .setName(name)
-            .setLogger(value.log)
-            .setServer(value.object)
-            .setPoolNumber(pool.min, pool.max)
-            .setAddress(address.data);
+                .setName(name)
+                .setLogger(value.log)
+                .setServer(value.object)
+                .setPoolNumber(pool.min, pool.max)
+                .setAddress(address.data);
             // 监听连接的变化 并修改
             connectZk.setServer(myServer);
             thriftServerMap.set(name, myServer);
 
         } catch (e) {
-            if (options.core_log) options.core_log.error(e);
+            coreLogger.error(e);
         }
     }
     try {
@@ -92,15 +92,15 @@ async function startZK(options, client) {
             for (let v of options.zk.register) {
                 v.path = v.path.replace(/^\//, '');
                 const path = await client.create()
-                .withMode(CuratorFrameworkFactory.EPHEMERAL)
-                .creatingParentContainersIfNeeded()
-                .isAbsoluteAddress()
-                .forPath(v.path + '/' + v.id, v.data);
+                    .withMode(CuratorFrameworkFactory.EPHEMERAL)
+                    .creatingParentContainersIfNeeded()
+                    .isAbsoluteAddress()
+                    .forPath(v.path + '/' + v.id, v.data);
             }
         }
 
     } catch (e) {
-        if (options.core_log) options.core_log.error(e);
+        coreLogger.error(e);
         process.exit();
     }
 
@@ -126,20 +126,20 @@ const start = (options, callback) => {
     try {
         checkParams(options);
     } catch (e) {
-        if (options.core_log) options.core_log.error(e);
+        coreLogger.error(e);
         process.exit();
     }
     const client = CuratorFrameworkFactory.builder()
-    .connectString(options.zk.url)
-    .build(async function () {
-        await startZK(options, client);
-        startWeb(options);
-        callback();
-    });
+        .connectString(options.zk.url)
+        .build(async function () {
+            await startZK(options, client);
+            startWeb(options);
+            callback();
+        });
     client.start();
 };
 
 module.exports = {
     formatQuery, AbstractSqlBean, getThrift, start, response, routerLog, getUuid,
-    serviceQuery
+    methodQuery, loadDirFiles
 };
