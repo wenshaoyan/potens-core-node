@@ -9,7 +9,9 @@ const ThriftHelper = require('./helper/thrift-helper');
 const connectZkHelper = require('./helper/connect-zk-helper');
 const {CuratorFrameworkFactory} = require('zk-curator');
 const response = require('./middleware/response');
-const routerLog = require('./middleware/router_log');
+const routerLog = require('./middleware/router-log');
+const {getUuid} = require('./util/sys-util');
+const serviceQuery = require('./middleware/service-query');
 
 
 
@@ -20,7 +22,10 @@ const getThrift = function (name) {
 
 const thriftServerMap = new Map();
 
-
+/**
+ * 检查参数
+ * @param option
+ */
 const checkParams = (option) => {
     if (!option || typeof option !== 'object') {
         throw new Error('options error');
@@ -31,7 +36,7 @@ const checkParams = (option) => {
     if (!option.zk.url || typeof option.zk.url !== 'string') {
         throw new Error('options.zk.url error');
     }
-    if (!option.thriftGlobal || typeof option.thriftGlobal !== 'object') {
+    if (typeof option.thriftGlobal !== 'object') {
         throw new Error('options.thriftGlobal error');
     }
     if (!option.thrift || typeof option.thrift !== 'object') {
@@ -112,7 +117,11 @@ const startWeb = (options) => {
     }
 
 };
-
+/**
+ * 启动服务
+ * @param options
+ * @param callback
+ */
 const start = (options, callback) => {
     try {
         checkParams(options);
@@ -131,5 +140,6 @@ const start = (options, callback) => {
 };
 
 module.exports = {
-    formatQuery, AbstractSqlBean, getThrift, start, response, routerLog
+    formatQuery, AbstractSqlBean, getThrift, start, response, routerLog, getUuid,
+    serviceQuery
 };
