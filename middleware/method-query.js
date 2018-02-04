@@ -4,7 +4,7 @@
  */
 'use strict';
 let methods = {};
-let {getThrift} = require('../index');
+let getThrift;
 let {loadDirFiles} = require('../util/sys-util');
 const moduleName = 'method=query';
 /**
@@ -80,9 +80,9 @@ async function execTask(field, name, root, ctx) {
     return newRoot;
 }
 function methodQuery(opt) {
+    getThrift = require('../index').getThrift;
     let jsonKey = 'methodJson';
     let graphqlKey = 'methodGraphql';
-    const methods = {};
     if (typeof opt === 'object') {
         if (typeof opt.jsonKey === 'string') {
             jsonKey = opt.jsonKey;
@@ -114,8 +114,9 @@ function methodQuery(opt) {
         }
         if (typeof ctx[jsonKey] === 'object') {  // 用methodJson去method中查询
             ctx.body = await createTask({}, ctx[jsonKey], ctx);
+        } else {
+            await next();
         }
-        await next();
     }
 }
 module.exports = methodQuery;
