@@ -13,6 +13,7 @@ const routerLog = require('./middleware/router-log');
 const {getUuid, loadDirFiles} = require('./util/sys-util');
 const methodQuery = require('./middleware/method-query');
 const LogDefault = require('./util/log-default-util');
+const graphqlKoa = require('./middleware/graphql-koa');
 let coreLogger = new LogDefault();
 
 const getThrift = function (name) {
@@ -141,5 +142,5 @@ const start = (options, callback) => {
 
 module.exports = {
     formatQuery, AbstractSqlBean, getThrift, start, response, routerLog, getUuid,
-    methodQuery, loadDirFiles
+    methodQuery, loadDirFiles,graphqlKoa
 };
