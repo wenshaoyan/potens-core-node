@@ -1,7 +1,4 @@
 const typeDefs = `
-        interface Node{
-            _sid: String!
-        }
         type Query{
             testStatus: Boolean
         }
@@ -28,7 +25,12 @@ const resolvers = {
 const baseSchemaString = () => {
     return {
         typeDefs,
-        resolvers
+        resolvers,
+        publicType: `
+            interface Node{
+                _sid: String!
+            }
+        `
     };
 };
 
