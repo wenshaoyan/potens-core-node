@@ -321,6 +321,9 @@ const Server = (function () {
          * @return {Promise.<Client>}   返回客户端
          */
         getClient() {
+            if (!this.pool) {
+                throw new Error(`${this.name} not pool`);
+            }
             const resourcePromise = this.pool.acquire();
             return resourcePromise.then(client => {
                 return client;

@@ -1,6 +1,6 @@
 {
   "name": "thrift-node-core",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "repository": {
     "type": "git",
     "url": "https://github.com/wenshaoyan/thrift-node-core"
@@ -24,6 +24,8 @@
   },
   "devDependencies": {
     "koa": "^2.2.0",
-    "log4js": "^2.3.3"
+    "log4js": "^2.3.3",
+    "graphql-tools": "^2.20.1",
+    "graphql": "^0.12.3"
   }
 }
