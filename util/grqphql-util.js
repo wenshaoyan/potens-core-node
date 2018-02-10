@@ -25,12 +25,7 @@ const resolvers = {
 const baseSchemaString = () => {
     return {
         typeDefs,
-        resolvers,
-        publicType: `
-            interface Node{
-                _sid: String!
-            }
-        `
+        resolvers
     };
 };
 
