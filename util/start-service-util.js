@@ -82,6 +82,7 @@ async function startZK(options, client) {
         if (options.zk.register instanceof Array) {
             for (let v of options.zk.register) {
                 v.path = v.path.replace(/^\//, '');
+                if (typeof v.data === 'object') v.data = JSON.stringify(v.data);
                 const path = await client.create()
                 .withMode(CuratorFrameworkFactory.EPHEMERAL)
                 .creatingParentContainersIfNeeded()
