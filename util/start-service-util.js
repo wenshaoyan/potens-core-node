@@ -12,6 +12,7 @@ const getThrift = function (name) {
     return thriftServerMap.get(name);
 };
 const thriftServerMap = new Map();
+let client;
 
 /**
  * 检查参数
@@ -121,7 +122,7 @@ const start = (options, callback) => {
         coreLogger.error(e);
         process.exit();
     }
-    const client = CuratorFrameworkFactory.builder()
+    client = CuratorFrameworkFactory.builder()
     .connectString(options.zk.url)
     .build(async function () {
         await startZK(options, client);
@@ -130,7 +131,13 @@ const start = (options, callback) => {
     });
     client.start();
 };
+/**
+ * 退出
+ */
+const exit = () => {
+    client.close();
+};
 
 module.exports = {
-    getThrift, start
+    getThrift, start, exit
 }
