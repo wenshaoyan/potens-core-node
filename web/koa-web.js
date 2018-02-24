@@ -1,5 +1,6 @@
 const http = require('http');
 let server;
+let port;
 /**
  * Normalize a port into a number, string, or false.
  */
@@ -58,9 +59,11 @@ function onListening() {
         ? 'pipe ' + addr
         : 'port ' + addr.port;
 }
-function start(app, port) {
+function start(app, _port) {
+
     server = http.createServer(app.callback());
-    server.listen(port);
+    port = _port;
+    server.listen(_port);
     server.on('error', onError);
     server.on('listening', onListening);
 }
