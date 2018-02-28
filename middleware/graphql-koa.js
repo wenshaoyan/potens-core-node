@@ -17,12 +17,17 @@ function graphqlKoaLog(options) {
                 ctx: ctx,
             },
             tracing: true,
+            formatError(error) {
+                // console.log(error);
+                return error;
+            },
             formatResponse: (data, all) => {
                 let ipv4 = ctx.ip.match(reIpv4);
                 if (ipv4 instanceof Array && ipv4.length === 2) ipv4 = ipv4[1];
                 else if (ipv4 === null) ipv4 = ctx.ip;
                 else ctx.ipv4 = ipv4;
-                if (ctx.method !== 'OPTIONS') logger.info(ipv4, `${data.extensions.tracing.duration / 1000}ms`, all.query);
+                if (ctx.method !== 'OPTIONS') logger.info(ipv4, `${data.extensions.tracing.duration / 1000}ms`,
+                    `[${all.query.replace(/[\r\n]/g, " ")}]`, `[${JSON.stringify(all.variables)}]`);
                 delete data.extensions;
                 return data;
             }
