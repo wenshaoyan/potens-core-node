@@ -12,8 +12,10 @@ const methodQuery = require('./middleware/method-query');
 const graphqlKoa = require('./middleware/graphql-koa');
 const {getThrift, start, exit} = require('./util/start-service-util');
 const {baseSchemaString} = require('./util/grqphql-util');
+const CoreException = require('./exception/core-exception');
 
 module.exports = {
-    formatQuery, AbstractSqlBean, getThrift, start, exit,response, routerLog, getUuid,
-    methodQuery, loadDirFiles, graphqlKoa, normalMergeDirFile, normalMergeDirMethod,baseSchemaString
+    formatQuery, AbstractSqlBean, getThrift, start, exit, response, routerLog, getUuid,
+    methodQuery, loadDirFiles, graphqlKoa, normalMergeDirFile, normalMergeDirMethod, baseSchemaString,
+    CoreException
 };

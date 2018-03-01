@@ -5,6 +5,8 @@
 const {CuratorFrameworkFactory} = require('zk-curator');
 const ThriftHelper = require('../helper/thrift-helper');
 const connectZkHelper = require('../helper/connect-zk-helper');
+const dict = require('../exception/dict');
+
 const LogDefault = require('./log-default-util');
 let coreLogger = new LogDefault();
 
@@ -83,10 +85,18 @@ async function startZK(options, client) {
         if (options.zk.register instanceof Array) {
             for (let v of options.zk.register) {
                 v.path = v.path.replace(/^\//, '');
+                const state = await client.checkExists()
+                .unwantedNamespace()
+                .forPath();
+                if (!state) {   // path不存在
+                    const e = dict.getExceptionByType('start-zk');
+                    throw e ;
+                }
+
                 if (typeof v.data === 'object') v.data = JSON.stringify(v.data);
                 const path = await client.create()
                 .withMode(CuratorFrameworkFactory.EPHEMERAL)
-                .creatingParentContainersIfNeeded()
+                .unwantedNamespace()
                 .isAbsoluteAddress()
                 .forPath(v.path + '/' + v.id, v.data);
             }
