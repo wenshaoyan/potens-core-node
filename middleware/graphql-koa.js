@@ -13,6 +13,12 @@ function graphqlKoaLog(options) {
     const trimRe = /[\r\n]/g;
     return async (ctx, next) => {
         ctx.request_self_id = new Date().getTime() + '-' + Math.random().toString(36).substr(2);
+        let request_ids;
+        if (ctx.headers.request_gateway_id) {
+            request_ids = `[${ctx.request_self_id},${ctx.headers.request_gateway_id}]`;
+        } else {
+            request_ids = `[${ctx.request_self_id},-]`;
+        }
         if (ctx.request.body) {
             if (typeof ctx.request.body.variables !== 'string' || ctx.request.body.variables.replace(/^\s+|\s+$/g, '').length === 0) {
                 ctx.request.body.variables = '{}';
@@ -29,12 +35,12 @@ function graphqlKoaLog(options) {
             },
             tracing: true,
             formatError(error) {
-                logger.error(`[${ctx.request_self_id}]`,`[${ipv4}]`, `-`,
+                logger.error(request_ids,`[${ipv4}]`, `-`,
                     `[${ctx.request.body.query.replace(trimRe, '')}]`,  `[${ctx.request.body.variables.replace(trimRe, '')}]`);
                 return error;
             },
             formatResponse: (data, all) => {
-                if (ctx.method !== 'OPTIONS') logger.info(`[${ctx.request_self_id}]`,`${ipv4}`, `${data.extensions.tracing.duration / 1000}ms`,
+                if (ctx.method !== 'OPTIONS') logger.info(request_ids,`[${ipv4}]`, `${data.extensions.tracing.duration / 1000}ms`,
                     `[${all.query.replace(trimRe, '')}]`,  `[${JSON.stringify(all.variables)}]`);
                 delete data.extensions;
                 return data;
@@ -43,7 +49,7 @@ function graphqlKoaLog(options) {
         })(ctx);
 
         if (ctx.status !== 200){
-            logger.error(`[${ctx.request_self_id}]`,`${ipv4}`, `-`,
+            logger.error(request_ids,`[${ipv4}]`, `-`,
                 `[${ctx.request.body.query.replace(trimRe, " ")}]`,  `[${ctx.request.body.variables.replace(trimRe, " ")}]`, [ctx.body]);
         }
     }
