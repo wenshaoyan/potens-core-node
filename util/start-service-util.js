@@ -84,10 +84,10 @@ async function startZK(options, client) {
     try {
         if (options.zk.register instanceof Array) {
             for (let v of options.zk.register) {
-                v.path = v.path.replace(/^\//, '');
+                // v.path = v.path.replace(/^\//, '');
                 const state = await client.checkExists()
                 .unwantedNamespace()
-                .forPath();
+                .forPath(v.path);
                 if (!state) {   // path不存在
                     const e = dict.getExceptionByType('start-zk');
                     throw e ;
