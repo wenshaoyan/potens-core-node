@@ -1,9 +1,9 @@
 {
-  "name": "thrift-node-core",
-  "version": "1.0.19",
+  "name": "potens-core-node",
+  "version": "1.1.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/wenshaoyan/thrift-node-core"
+    "url": "https://github.com/wenshaoyan/potens-core-node"
   },
   "description": "基于thrift的后端server的框架",
   "keywords": [

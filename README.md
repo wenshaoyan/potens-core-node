@@ -1,5 +1,4 @@
-# thrift-node-core
-以thrift+zookeeper实现的后端底层框架，thrift用来进行可扩展且跨语言的服务的开发，zookeeper用来实现服务的统一管理和配置中心</br>
+# potens-core-node
 
 ## **主要功能**
 * 连接到zk和thrift服务端.
