@@ -1,30 +1,26 @@
-const log4js = require('log4js');
-log4js.configure(
+const log4j2 = require('log4j2-node');
+log4j2.configure(
     {
         "appenders": {
-            "console":{"type":"console"},
-            "http":{
-                "type": "logFaces-HTTP",
-                "url": "http://120.92.108.221:7000/AdminHttp/develop/123456789"
-            }
+            "console":{"type":"console"}
         },
         "categories": {
             "default": { "appenders": ["console"], "level":"trace" },
-            "router":{"appenders":["console","http"],"level":"trace"},
-            "zookeeper":{"appenders":["console","http"],"level":"trace"},
-            "thrift":{"appenders":["console","http"],"level":"trace"},
+            "router":{"appenders":["console"],"level":"trace"},
+            "zookeeper":{"appenders":["console"],"level":"trace"},
+            "thrift":{"appenders":["console",],"level":"trace"},
             "resSuccess":{"appenders":["console"],"level":"trace"},
-            "resFail":{"appenders":["console","http"],"level":"trace"},
-            "resUnknown":{"appenders":["console","http"],"level":"trace"},
-            "error": {"appenders":["console","http"],"level":"trace"},
-            "core": {"appenders":["console","http"],"level":"trace"}
+            "resFail":{"appenders":["console"],"level":"trace"},
+            "resUnknown":{"appenders":["console"],"level":"trace"},
+            "error": {"appenders":["console"],"level":"trace"},
+            "core": {"appenders":["console"],"level":"trace"}
         }
     }
 );
 
 const serviceConfig = {
     "node_env": "develop",
-    "core_log": log4js.getLogger('core'),
+    "core_log": log4j2.getLogger('core'),
     "zk": {
         "url": process.env.ZK_URL,
         "register": [
@@ -39,7 +35,7 @@ const serviceConfig = {
         "timeout": 10000,
         "poolMax": 2,
         "poolMin": 1,
-        "log":log4js.getLogger('thrift')
+        "log":log4j2.getLogger('thrift')
     },
     "thrift": {
         "UserService": {
@@ -72,7 +68,7 @@ const serviceConfig = {
 const {start, getThrift, AbstractSqlBean} = require('../index');
 start(serviceConfig, main);
 async function main() {
-    log4js.getLogger().info('==============')
+    log4j2.getLogger().info('==============')
     try{
         let client = await getThrift('CommonService').getProxyClient();
         console.log(await client.topicBankSelect(new AbstractSqlBean({})));

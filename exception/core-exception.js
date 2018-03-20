@@ -7,6 +7,7 @@
 class CoreException extends Error{
     constructor(code, type, message, serverName, methodName, fullMessage) {
         super();
+        this.name = 'CoreException';
         if (typeof code === 'object') {
             const obj = code;
             this._code = obj.code;

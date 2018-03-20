@@ -4,10 +4,14 @@
  */
 'use strict';
 const reIpv4 = '.*:.*:.*:(.*)';
-const log4js = require('log4js');
+const CoreError = require('../exception/core-error');
 
 function routerLog(opt) {
-    const logger = log4js.getLogger()
+    CoreError.isJson(opt, `opt not is json`);
+    CoreError.keyExist(opt, 'logger',  `opt not is json`);
+    CoreError.isLogger(opt.logger, 'logger',  `opt not is json`);
+
+    const logger = opt.logger;
     return async function (ctx, next) {
         const input = new Date().getTime();
         await next();
