@@ -10,12 +10,12 @@ const routerLog = require('./middleware/router-log');
 const {getUuid, loadDirFiles, normalMergeDirFile, normalMergeDirMethod} = require('./util/sys-util');
 const methodQuery = require('./middleware/method-query');
 const graphqlKoa = require('./middleware/graphql-koa');
-const {getThrift, start, exit} = require('./util/start-service-util');
+const {getThrift, start, exit, basicMail} = require('./util/start-service-util');
 const {baseSchemaString} = require('./util/grqphql-util');
 const CoreException = require('./exception/core-exception');
 
 module.exports = {
     formatQuery, AbstractSqlBean, getThrift, start, exit, response, routerLog, getUuid,
     methodQuery, loadDirFiles, graphqlKoa, normalMergeDirFile, normalMergeDirMethod, baseSchemaString,
-    CoreException
+    CoreException, basicMail
 };

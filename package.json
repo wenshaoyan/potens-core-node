@@ -19,8 +19,9 @@
   "dependencies": {
     "function-interceptor": "^1.0.4",
     "generic-pool": "^3.2.0",
+    "kafka-node": "^2.4.1",
     "thrift": "^0.10.0",
-    "zk-curator": "^1.0.2"
+    "zk-curator": "^1.0.7"
   },
   "devDependencies": {
     "koa": "^2.2.0",

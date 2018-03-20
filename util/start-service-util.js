@@ -15,7 +15,7 @@ const getThrift = function (name) {
 };
 const thriftServerMap = new Map();
 let client;
-
+let basicMail;
 /**
  * 检查参数
  * @param option
@@ -39,8 +39,57 @@ const checkParams = (option) => {
     for (const key in option.thrift) {
         option.thrift[key] = Object.assign(option.thrift[key], option.thriftGlobal);
     }
-};
+    if (!option.amq || typeof option.amq !== 'object') {
+        throw new Error('options.amq error');
+    }
+    Object.keys(option.amq).map(k => {
+        if (k !== 'host') {
+            const v = option.amq[k];
+            if (typeof v.topic !== 'string') {
+                throw new Error(`${v.host} not is string`);
+            }
+        }
 
+    })
+};
+/**
+ * 检查mail message的格式
+ * @param message
+ */
+const checkMailMessage = (message) => {
+    if (typeof message !== 'object') {
+        return 'message not is object';
+    }
+    if (typeof message.to !== 'string') {
+        return `message.to=${message.to} not is string`;
+    }
+    if (typeof message.subject !== 'string') {
+        return `message.subject=${message.subject} not is string`;
+    }
+    if (typeof message.body !== 'string') {
+        return `message.body=${message.body} not is string`;
+    }
+    if (typeof message.body_type !== 'string' ) {
+        return `message.body_type=${message.body_type} not is string`;
+    }
+    if (message.body_type !== 'html' ||  message.body_type !== 'text') {
+        message.body_type = 'text';
+    }
+    if (typeof message.level !== 'string') {
+        return `message.level=${message.level} not is string`;
+    }
+    if (message.level !== 'info'
+        ||
+        message.level !== 'ware'
+        ||
+        message.level !== 'error'
+        ||
+        message.level !== 'fatal'
+    ) {
+        message.level = 'info';
+    }
+    return false;
+};
 /**
  * 连接zk 并创建thrift连接
  * @param options
@@ -121,22 +170,48 @@ const startWeb = (options) => {
 
 };
 /**
+ * 启动异步mq
+ * @param options
+ */
+const startAMQ = (options) => {
+    const amq = options.amq;
+    coreLogger = options.core_log;
+    const kafka = require('kafka-node'),
+        Producer = kafka.Producer,
+        client = new kafka.KafkaClient({kafkaHost:amq.host}),
+        producer = new Producer(client);
+    basicMail = function (message) {
+        if (!amq.mail) {
+            coreLogger.error('amq.mail.topic error');
+            return false;
+        }
+        const checkResult = checkMailMessage(message);
+        if (checkResult) {
+            coreLogger.error(checkResult);
+        }
+        return new Promise((resolve, reject) => {
+            producer.send([{ topic: amq.mail, messages: JSON.stringify(message), key:'test' }], (err,data) => {
+                if (err) reject(err);
+                else resolve(data);
+            })
+        });
+    };
+
+
+};
+/**
  * 启动服务
  * @param options
  * @param callback
  */
 const start = (options, callback) => {
-    try {
-        checkParams(options);
-    } catch (e) {
-        coreLogger.error(e);
-        process.exit();
-    }
+    checkParams(options);
     client = CuratorFrameworkFactory.builder()
     .connectString(options.zk.url)
     .build(async function () {
         await startZK(options, client);
         startWeb(options);
+        startAMQ(options);
         callback();
     });
     client.start();
@@ -149,5 +224,5 @@ const exit = () => {
 };
 
 module.exports = {
-    getThrift, start, exit
-}
+    getThrift, start, exit, basicMail
+};
