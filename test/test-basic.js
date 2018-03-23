@@ -32,11 +32,22 @@ const serviceConfig = {
             }
         ]
     },
-    "thriftGlobal": {
+    "thrift": {
         "timeout": 10000,
         "poolMax": 2,
         "poolMin": 1,
-        "log":log4j2.getLogger('thrift')
+        "log":log4j2.getLogger('thrift'),
+        "tree": {
+            "rootPath": "/develop/thrift",
+            "nodes": {
+                "UserService": {
+                    "object": require('./gen/UserService')
+                },
+                "BannerService": {
+                    "object": require('./gen/UserService')
+                }
+            }
+        }
     },
     "web": {
         "http": 9000,
@@ -49,14 +60,13 @@ const serviceConfig = {
         }
     }
 };
-const {start, getThrift, AbstractSqlBean, basicMail} = require('../index');
+const {start, getThrift, AbstractSqlBean, basicSendMail} = require('../index');
 start(serviceConfig, main);
 
-console.warn('==========')
 async function main() {
-    try{
-        basicMail({to:'11'})
-    }catch (e){
-        console.log(e)
-    }
+    console.log('===========2')
+    //console.log(await basicSendMail({to:'11'}));
+
+
+
 }

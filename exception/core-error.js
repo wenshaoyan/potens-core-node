@@ -67,7 +67,6 @@ class CoreError extends Error {
         }
         throw new CoreError(message, 4);
     }
-
     // 必须为logger对象 包含 info error debug 等方法
     static isLogger(o, message) {
         if (o.info instanceof Function
@@ -78,7 +77,28 @@ class CoreError extends Error {
         ) {
             return true;
         }
-        throw new CoreError(message, 4);
+        throw new CoreError(message, 5);
+    }
+    // 是否为不为空字符串
+    static isStringNotNull(o, message) {
+        if (typeof o === 'string' && o.length > 0) {
+            return true;
+        }
+        throw new CoreError(message, 6);
+    }
+    // 是否为number
+    static isNumber(o, message) {
+        if (typeof o === 'number') {
+            return true;
+        }
+        throw new CoreError(message, 6);
+    }
+    // 是否在指定的范围
+    static isScope(o, scope, message) {
+        if (o >= scope[0] && o<= scope[1]) {
+            return true;
+        }
+        throw new CoreError(message, 6);
     }
 }
 
