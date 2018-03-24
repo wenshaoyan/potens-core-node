@@ -7,6 +7,9 @@ const ThriftHelper = require('../helper/thrift-helper');
 const connectZkHelper = require('../helper/connect-zk-helper');
 const dict = require('../exception/dict');
 const CoreError = require('../exception/core-error');
+const systemPath = require('path');
+const {JSONParse} = require('./sys-util');
+const ZkNodeDateBean = require('../bean/zk-node-data-bean');
 
 const LogDefault = require('./log-default-util');
 let coreLogger = new LogDefault();
@@ -21,7 +24,7 @@ let client;
 let _basicSendMail;
 
 /**
- * 检查参数
+ * 检查参数 并整理配置
  * @param option
  */
 const checkParams = (option) => {
@@ -36,28 +39,59 @@ const checkParams = (option) => {
         "scopeTimeout": [1000, 20000],
         "scopePoolMax": [1, 100],
         "scopePoolMin": [1, 100],
-    }
+    };
+    const thriftConfig = option.thrift;
 
-    if (typeof option.thrift === 'object') {
-        if (option.thrift.timeout === undefined) option.thrift.timeout = defaultThrift.timeout;
-        CoreError.isNumber(option.thrift.timeout, 'option.thrift.timeout not is number');
-        CoreError.isScope(option.thrift.timeout, defaultThrift.scopeTimeout,`option.thrift.timeout need <=${defaultThrift.scopeTimeout[0]} >=${defaultThrift.scopeTimeout[1]}`);
+    if (typeof thriftConfig === 'object') {
+        if (thriftConfig.timeout === undefined) thriftConfig.timeout = defaultThrift.timeout;
+        CoreError.isNumber(thriftConfig.timeout, 'option.thrift.timeout not is number');
+        CoreError.isScope(thriftConfig.timeout, defaultThrift.scopeTimeout, `thriftConfig.timeout need <=${defaultThrift.scopeTimeout[0]} >=${defaultThrift.scopeTimeout[1]}`);
 
+        if (thriftConfig.poolMax === undefined) thriftConfig.poolMax = defaultThrift.poolMax;
+        CoreError.isNumber(thriftConfig.poolMax, 'option.thrift.poolMax not is number');
+        CoreError.isScope(thriftConfig.poolMax, defaultThrift.scopePoolMax, `option.thrift.poolMax need <=${defaultThrift.scopePoolMax[0]} >=${defaultThrift.scopePoolMax[1]}`);
 
-    }
+        if (thriftConfig.poolMin === undefined) thriftConfig.poolMin = defaultThrift.poolMin;
+        CoreError.isNumber(thriftConfig.poolMin, 'option.thrift.timeout not is number');
+        CoreError.isScope(thriftConfig.poolMin, defaultThrift.scopePoolMin, `option.thrift.poolMin need <=${defaultThrift.scopePoolMin[0]} >=${defaultThrift.scopePoolMin[1]}`);
 
-    if (!option.amq || typeof option.amq !== 'object') {
-        throw new Error('options.amq error');
-    }
-    Object.keys(option.amq).map(k => {
-        if (k !== 'host') {
-            const v = option.amq[k];
-            if (typeof v.topic !== 'string') {
-                throw new Error(`${v.host} not is string`);
+        if (thriftConfig.log === undefined) thriftConfig.log = new LogDefault();
+        CoreError.isLogger(thriftConfig.log, 'option.thrift.log not is logger');
+
+        CoreError.isJson(thriftConfig.tree, 'option.thrift.tree not is json');
+        CoreError.isStringNotNull(thriftConfig.rootPath, 'option.thrift.rootPath not is string');
+
+        Object.keys(thriftConfig.tree).forEach(serverName => {
+            const server = thriftConfig.tree[serverName];
+            const currentErrorString = `option.thrift.tree[${serverName}]`;
+            CoreError.isObject(server.object, `currentErrorString.object not is object`);
+
+            if (server.timeout === undefined) server.timeout = thriftConfig.timeout;
+            else {
+                CoreError.isNumber(server.timeout, `${currentErrorString}.timeout not is number`);
+                CoreError.isScope(server.timeout, defaultThrift.scopeTimeout, `${currentErrorString}.timeout need <=${defaultThrift.scopeTimeout[0]} >=${defaultThrift.scopeTimeout[1]}`);
             }
-        }
 
-    })
+            if (server.poolMax === undefined) server.poolMax = thriftConfig.poolMax;
+            else {
+                CoreError.isNumber(server.poolMax, `${currentErrorString}.poolMax not is number`);
+                CoreError.isScope(server.poolMax, defaultThrift.scopePoolMax, `${currentErrorString}.poolMax need <=${defaultThrift.scopePoolMax[0]} >=${defaultThrift.scopePoolMax[1]}`);
+            }
+
+            if (server.poolMin === undefined) server.poolMin = thriftConfig.poolMin;
+            else {
+                CoreError.isNumber(server.poolMin, `${currentErrorString}.poolMin not is number`);
+                CoreError.isScope(server.poolMin, defaultThrift.scopePoolMin, `${currentErrorString}.poolMin need <=${defaultThrift.scopePoolMin[0]} >=${defaultThrift.scopePoolMin[1]}`);
+            }
+            if (server.log === undefined) server.log = thriftConfig.log;
+            else CoreError.isLogger(server.log, `${currentErrorString}.log not is logger`);
+
+        })
+    } else {
+        option.thrift = {};
+    }
+
+
 };
 // 合并thriftGlobal配置到thriftTree
 const mergeThrift = (option) => {
@@ -130,11 +164,11 @@ async function startZK(options, client) {
             }
             // 创建thrift的连接
             let myServer = await new ThriftHelper()
-            .setName(name)
-            .setLogger(value.log)
-            .setServer(value.object)
-            .setPoolNumber(pool.min, pool.max)
-            .setAddress(address.data);
+                .setName(name)
+                .setLogger(value.log)
+                .setServer(value.object)
+                .setPoolNumber(pool.min, pool.max)
+                .setAddress(address.data);
             // 监听连接的变化 并修改
             connectZk.setServer(myServer);
             thriftServerMap.set(name, myServer);
@@ -148,8 +182,8 @@ async function startZK(options, client) {
             for (let v of options.zk.register) {
                 // v.path = v.path.replace(/^\//, '');
                 const state = await client.checkExists()
-                .unwantedNamespace()
-                .forPath(v.path);
+                    .unwantedNamespace()
+                    .forPath(v.path);
                 if (!state) {   // path不存在
                     const e = dict.getExceptionByType('start-zk');
                     throw e;
@@ -157,10 +191,10 @@ async function startZK(options, client) {
 
                 if (typeof v.data === 'object') v.data = JSON.stringify(v.data);
                 const path = await client.create()
-                .withMode(CuratorFrameworkFactory.EPHEMERAL)
-                .unwantedNamespace()
-                .isAbsoluteAddress()
-                .forPath(v.path + '/' + v.id, v.data);
+                    .withMode(CuratorFrameworkFactory.EPHEMERAL)
+                    .unwantedNamespace()
+                    .isAbsoluteAddress()
+                    .forPath(v.path + '/' + v.id, v.data);
             }
         }
 
@@ -177,71 +211,79 @@ const randomGetNode = function (o) {
         return null;
     }
     const key = Math.floor((Math.random() * arr.length));
-    return o[key];
+    return o[arr[key]];
+};
+// 检查zk上节点的正确性 并返回消费节点
+const checkParamAndGetConsumeNodeData =  function (serverZk) {
+    if (serverZk.children.length > 0){    // 对应的服务下存在消费节点
+        const consumeNode = randomGetNode(serverZk.childrenData);   // 随机获取一个消费节点
+        if (!consumeNode) {
+            coreLogger.warn(`path=${serverZk.path} not found consume node`);
+            return false
+        }
+        const consumeNodeData = JSONParse(consumeNode.data);
+        if (!consumeNodeData) {
+            coreLogger.warn(`path=${consumeNode.path} data=${consumeNode.data} data not is json string`);
+            return false
+        }
+        const zkNodeDateBean=  new ZkNodeDateBean(consumeNodeData);
+        if (zkNodeDateBean.check() !== true){
+            coreLogger.warn(`path=${consumeNode.path} data=${consumeNode.data} check error`);
+            return false;
+        }
+        consumeNode.tag = 1;
+        return zkNodeDateBean;
+    } else {
+        coreLogger.warn(`path=${serverZk.path} not found consume node`);
+        return false;
+    }
 };
 
-
-async function startZKByCache(options, client) {
-    coreLogger = options.core_log;
-    coreLogger.info(options.thriftTree.rootPath);
-    const treeCache = new TreeCache(client, options.thriftTree.rootPath, 3);
+async function startZKByCache(option, client) {
+    coreLogger = option.core_log;
+    coreLogger.info(option.thrift.rootPath);
+    const treeCache = new TreeCache(client, option.thrift.rootPath, 3);
     treeCache.addListener({
-        childAdd: function (cache, deep) {
-            console.log('childAdd', deep);
-            console.log(cache.getData())
-        },
-        childRemove: function (cache, deep) {
-            console.log('childRemove', deep);
-            console.log(cache.getData())
+        childAdd: function (cache, deep, changeNode) {
 
         },
-        nodeCreate: function (cache, deep) {
-            console.log('nodeCreate', deep);
-            console.log(cache.getData())
+        childRemove: function (cache, deep, changeNode) {
+            if (deep === 1 && changeNode.tag === 1) {   // 当前消费的节点断开了 寻找下一个消费节点
+
+            }
+
+
         },
-        nodeRemove: function (cache, deep) {
-            console.log('nodeRemove', deep);
-            console.log(cache.getData())
-        },
-        nodeDataChange: function (cache, deep) {
-            console.log('nodeDataChange', deep);
-            console.log(cache.getData())
+        nodeDataChange: function (cache, deep, changeNode) {
+
         }
     });
     await treeCache.start();
-    const childrenData = treeCache.getData().childrenData;
-    const nodes = Object.keys(options.thriftTree.nodes);
-    for (const server of nodes) {
-        const pool = {
-            min: 1,
-            max: 5
-        };
-        if (value.poolMax && typeof value.poolMax === 'number') {
-            pool.max = value.poolMax;
-        }
-        if (value.poolMin && typeof value.poolMin === 'number') {
-            pool.min = value.poolMin;
-        }
-        if (server in childrenData) {
-            if (childrenData[server].children.length === 0) coreLogger.warn(`${server} child node is null`);
-            else {
-                const node = randomGetNode(childrenData[server].childrenData);
-                if (node === null) {
-                    coreLogger.warn(`${server} child node is null`);
-                }
-                // 创建thrift的连接
-                let myServer = await new ThriftHelper()
-                .setName(server)
-                .setLogger(options.thriftGlobal.log)
-                .setServer(value.object)
-                .setPoolNumber(pool.min, pool.max)
-                .setAddress(address.data);
-                thriftServerMap.set(server, myServer);
+    const cacheDate = treeCache.getData();
+
+    const thriftConfig = option.thrift;
+    for (const serverName of Object.keys(thriftConfig.tree)){
+        const server = thriftConfig.tree[serverName];
+        // 创建空的ThriftHelp对象
+        let myServer = new ThriftHelper()
+            .setName(serverName)
+            .setLogger(server.log)
+            .setServer(server.object)
+            .setPoolNumber(server.poolMin, server.poolMax);
+        thriftServerMap.set(serverName, myServer);
+        if (serverName in cacheDate.childrenData) { // 在zookeeper中注册了对应的服务
+            const serverZk = cacheDate.childrenData[serverName];
+            const zkNodeDateBean = checkParamAndGetConsumeNodeData(serverZk);
+            if (zkNodeDateBean) {
+                myServer.setAddress(zkNodeDateBean.host);
+
             }
+
         } else {
-            coreLogger.warn(`${server} node not exist`);
+            coreLogger.warn(`zk=${option.thrift.rootPath} not found child=${serverName}`);
         }
     }
+
 
 }
 
@@ -258,34 +300,43 @@ const startWeb = (options) => {
 };
 /**
  * 启动异步mq
- * @param options
+ * @param option
  */
-const startAMQ = (options) => {
-    const amq = options.amq;
-    coreLogger = options.core_log;
-    const kafka = require('kafka-node'),
-        Producer = kafka.Producer,
-        client = new kafka.KafkaClient({kafkaHost: amq.host}),
-        producer = new Producer(client);
-    _basicSendMail = function (message) {
-        if (!amq.mail) {
-            coreLogger.error('amq.mail.topic error');
-            return false;
-        }
-        const checkResult = checkMailMessage(message);
-        if (checkResult) {
-            coreLogger.error(checkResult);
-            return false
-        }
-        return new Promise((resolve, reject) => {
-            producer.send([{topic: amq.mail, messages: JSON.stringify(message), key: 'test'}], (err, data) => {
-                if (err) reject(err);
-                else resolve(data);
-            })
-        });
-    };
+const startAMQ = (option) => {
+    const amqConfig = option.amq;
+    coreLogger = option.core_log;
+    if (typeof amqConfig === 'object') {
+        Object.keys(amqConfig).forEach(mqName => {
+            const mq = amqConfig[mqName];
+            if (mq.type === undefined) mq.type = 'kafka';
+            if (mq.type === 'kafka' && mqName === 'mail') {
+                const kafka = require('kafka-node'),
+                    Producer = kafka.Producer,
+                    client = new kafka.KafkaClient({kafkaHost: mq.host}),
+                    producer = new Producer(client);
+                _basicSendMail = function (message) {
+                    const checkResult = checkMailMessage(message);
+                    if (checkResult) {
+                        coreLogger.error(checkResult);
+                        return false
+                    }
+                    return new Promise((resolve, reject) => {
+                        producer.send([{topic: mq.topic, messages: JSON.stringify(message), key: 'test'}], (err, data) => {
+                            if (err) reject(err);
+                            else resolve(data);
+                        })
+                    });
+                };
+            }
+
+        })
+
+    }
+
+
 };
 const basicSendMail = async function (message) {
+    if (!(_basicSendMail instanceof  Function)) coreLogger.error(`_basicSendMail not is Function, pls check the config.amq.mail config,so message not send`);
     return await _basicSendMail(message);
 };
 /**
@@ -296,14 +347,19 @@ const basicSendMail = async function (message) {
 const start = (options, callback) => {
     checkParams(options);
     client = CuratorFrameworkFactory.builder()
-    .connectString(options.zk.url)
-    .build(async function () {
-        // await startZK(options, client);
-        await startZKByCache(options, client);
-        startWeb(options);
-        startAMQ(options);
-        callback();
-    });
+        .connectString(options.zk.url)
+        .build(async function () {
+            try {
+                // await startZK(options, client);
+                await startZKByCache(options, client);
+                startWeb(options);
+                startAMQ(options);
+            }catch (e){
+                console.log(e)
+            }
+
+            callback();
+        });
     client.start();
 };
 /**

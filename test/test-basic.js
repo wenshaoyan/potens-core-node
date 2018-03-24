@@ -3,18 +3,18 @@ const log4j2 = require('log4j2-node');
 log4j2.configure(
     {
         "appenders": {
-            "console":{"type":"console"}
+            "console": {"type": "console"}
         },
         "categories": {
-            "default": { "appenders": ["console"], "level":"trace" },
-            "router":{"appenders":["console"],"level":"trace"},
-            "zookeeper":{"appenders":["console"],"level":"trace"},
-            "thrift":{"appenders":["console",],"level":"trace"},
-            "resSuccess":{"appenders":["console"],"level":"trace"},
-            "resFail":{"appenders":["console"],"level":"trace"},
-            "resUnknown":{"appenders":["console"],"level":"trace"},
-            "error": {"appenders":["console"],"level":"trace"},
-            "core": {"appenders":["console"],"level":"trace"}
+            "default": {"appenders": ["console"], "level": "trace"},
+            "router": {"appenders": ["console"], "level": "trace"},
+            "zookeeper": {"appenders": ["console"], "level": "trace"},
+            "thrift": {"appenders": ["console",], "level": "trace"},
+            "resSuccess": {"appenders": ["console"], "level": "trace"},
+            "resFail": {"appenders": ["console"], "level": "trace"},
+            "resUnknown": {"appenders": ["console"], "level": "trace"},
+            "error": {"appenders": ["console"], "level": "trace"},
+            "core": {"appenders": ["console"], "level": "trace"}
         }
     }
 );
@@ -22,7 +22,7 @@ log4j2.configure(
 const serviceConfig = {
     "node_env": "develop",
     "core_log": log4j2.getLogger('core'),
-    "zk": {
+    "zk": {     // 必选
         "url": process.env.ZK_URL,
         "register": [
             {
@@ -36,16 +36,14 @@ const serviceConfig = {
         "timeout": 10000,
         "poolMax": 2,
         "poolMin": 1,
-        "log":log4j2.getLogger('thrift'),
+        "log": log4j2.getLogger('thrift'),
+        "rootPath": "/develop/thrift",
         "tree": {
-            "rootPath": "/develop/thrift",
-            "nodes": {
-                "UserService": {
-                    "object": require('./gen/UserService')
-                },
-                "BannerService": {
-                    "object": require('./gen/UserService')
-                }
+            "UserService": {
+                "object": require('./gen/UserService')
+            },
+            "BannerService": {
+                "object": require('./gen/UserService')
             }
         }
     },
@@ -53,10 +51,11 @@ const serviceConfig = {
         "http": 9000,
         "app": require('./app')
     },
-    "amq": {
-        "host": '120.92.108.221:9092',
+    "amq": {    // 可选
         "mail": {
-            "topic": "mail"
+            "topic": "mail",
+            "host": '120.92.108.221:9092',
+            "type": "kafka"
         }
     }
 };
@@ -66,7 +65,6 @@ start(serviceConfig, main);
 async function main() {
     console.log('===========2')
     //console.log(await basicSendMail({to:'11'}));
-
 
 
 }

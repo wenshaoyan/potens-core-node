@@ -73,5 +73,16 @@ class SysUtil {
         }
         return data;
     }
+
+    /**
+     * @return {boolean}
+     */
+    static JSONParse(o) {
+        try {
+            return JSON.parse(o)
+        } catch (e) {
+            return false;
+        }
+    }
 }
 module.exports = SysUtil;
