@@ -31,7 +31,7 @@ const checkParams = (option) => {
     CoreError.isJson(option, 'option not is json');
     CoreError.isLogger(option.core_log, 'option.core_log not is logger');
     CoreError.isJson(option.zk, 'option.zk not is json');
-    CoreError.isStringNotNull(option.zk.url, 'option.zk.url not is json');
+    CoreError.isStringNotNull(option.zk.url, 'option.zk.url not is string');
     const defaultThrift = {
         "timeout": 10000,
         "poolMax": 10,
