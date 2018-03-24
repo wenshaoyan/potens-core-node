@@ -93,10 +93,7 @@ const checkParams = (option) => {
 
 
 };
-// 合并thriftGlobal配置到thriftTree
-const mergeThrift = (option) => {
 
-};
 
 /**
  * 检查mail message的格式
@@ -115,12 +112,14 @@ const checkMailMessage = (message) => {
     if (typeof message.body !== 'string') {
         return `message.body=${message.body} not is string`;
     }
+    if (message.body_type === undefined) message.body_type = 'text';
     if (typeof message.body_type !== 'string') {
         return `message.body_type=${message.body_type} not is string`;
     }
     if (message.body_type !== 'html' || message.body_type !== 'text') {
         message.body_type = 'text';
     }
+    if (message.level === undefined) message.level = 'info';
     if (typeof message.level !== 'string') {
         return `message.level=${message.level} not is string`;
     }
@@ -214,7 +213,7 @@ const randomGetNode = function (o) {
     return o[arr[key]];
 };
 // 检查zk上节点的正确性 并返回消费节点
-const checkParamAndGetConsumeNodeData =  function (serverZk) {
+const checkParamAndGetConsumeNodeData =  function (serverZk, serverName) {
     if (serverZk.children.length > 0){    // 对应的服务下存在消费节点
         const consumeNode = randomGetNode(serverZk.childrenData);   // 随机获取一个消费节点
         if (!consumeNode) {
@@ -231,6 +230,7 @@ const checkParamAndGetConsumeNodeData =  function (serverZk) {
             coreLogger.warn(`path=${consumeNode.path} data=${consumeNode.data} check error`);
             return false;
         }
+        coreLogger.debug(`thriftName=${serverName};node.id=${consumeNode.id} start connect...`);
         consumeNode.tag = 1;
         return zkNodeDateBean;
     } else {
@@ -245,14 +245,42 @@ async function startZKByCache(option, client) {
     const treeCache = new TreeCache(client, option.thrift.rootPath, 3);
     treeCache.addListener({
         childAdd: function (cache, deep, changeNode) {
+            if (deep === 1) {   // 新增了消费节点
+                const cacheDate = cache.getData();
+                const serverName = systemPath.basename(systemPath.dirname(changeNode.path));
+                const myServer = thriftServerMap.get(serverName);
+                if (!myServer) {
+                    return;
+                }
+                if (myServer.connectionStatus !== 1) {  // 当前服务的节点处于非连接中,需要重连。否则不处理
+                    const serverZk = cacheDate.childrenData[serverName];
+                    const zkNodeDateBean = checkParamAndGetConsumeNodeData(serverZk, serverName);
+                    if (zkNodeDateBean) {
+                        myServer.setAddress(zkNodeDateBean.host);
+                    }
+                }
 
+
+
+            }
         },
         childRemove: function (cache, deep, changeNode) {
             if (deep === 1 && changeNode.tag === 1) {   // 当前消费的节点断开了 寻找下一个消费节点
-
+                const cacheDate = cache.getData();
+                const serverName = systemPath.basename(systemPath.dirname(changeNode.path));
+                coreLogger.debug(`thriftName=${serverName};node.id=${changeNode.id} disconnect...`);
+                const myServer = thriftServerMap.get(serverName);
+                if (!myServer) {
+                    coreLogger.warn(`thriftServerMap not found ${serverName}`);
+                    return;
+                }
+                myServer.close();
+                const serverZk = cacheDate.childrenData[serverName];
+                const zkNodeDateBean = checkParamAndGetConsumeNodeData(serverZk, serverName);
+                if (zkNodeDateBean) {
+                    myServer.setAddress(zkNodeDateBean.host);
+                }
             }
-
-
         },
         nodeDataChange: function (cache, deep, changeNode) {
 
@@ -273,10 +301,9 @@ async function startZKByCache(option, client) {
         thriftServerMap.set(serverName, myServer);
         if (serverName in cacheDate.childrenData) { // 在zookeeper中注册了对应的服务
             const serverZk = cacheDate.childrenData[serverName];
-            const zkNodeDateBean = checkParamAndGetConsumeNodeData(serverZk);
+            const zkNodeDateBean = checkParamAndGetConsumeNodeData(serverZk, serverName);
             if (zkNodeDateBean) {
                 myServer.setAddress(zkNodeDateBean.host);
-
             }
 
         } else {

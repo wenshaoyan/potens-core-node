@@ -53,8 +53,8 @@ const serviceConfig = {
     },
     "amq": {    // 可选
         "mail": {
-            "topic": "mail",
-            "host": '120.92.108.221:9092',
+            "topic": "basis-mail",
+            "host": process.env.KAFKA_URL,
             "type": "kafka"
         }
     }
@@ -63,8 +63,7 @@ const {start, getThrift, AbstractSqlBean, basicSendMail} = require('../index');
 start(serviceConfig, main);
 
 async function main() {
-    console.log('===========2')
-    //console.log(await basicSendMail({to:'11'}));
 
+    console.log(await basicSendMail({to:'821561230@qq.com',subject: '111', body:'111111'}));
 
 }
