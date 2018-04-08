@@ -163,11 +163,11 @@ async function startZK(options, client) {
             }
             // 创建thrift的连接
             let myServer = await new ThriftHelper()
-                .setName(name)
-                .setLogger(value.log)
-                .setServer(value.object)
-                .setPoolNumber(pool.min, pool.max)
-                .setAddress(address.data);
+            .setName(name)
+            .setLogger(value.log)
+            .setServer(value.object)
+            .setPoolNumber(pool.min, pool.max)
+            .setAddress(address.data);
             // 监听连接的变化 并修改
             connectZk.setServer(myServer);
             thriftServerMap.set(name, myServer);
@@ -181,8 +181,8 @@ async function startZK(options, client) {
             for (let v of options.zk.register) {
                 // v.path = v.path.replace(/^\//, '');
                 const state = await client.checkExists()
-                    .unwantedNamespace()
-                    .forPath(v.path);
+                .unwantedNamespace()
+                .forPath(v.path);
                 if (!state) {   // path不存在
                     const e = dict.getExceptionByType('start-zk');
                     throw e;
@@ -190,10 +190,10 @@ async function startZK(options, client) {
 
                 if (typeof v.data === 'object') v.data = JSON.stringify(v.data);
                 const path = await client.create()
-                    .withMode(CuratorFrameworkFactory.EPHEMERAL)
-                    .unwantedNamespace()
-                    .isAbsoluteAddress()
-                    .forPath(v.path + '/' + v.id, v.data);
+                .withMode(CuratorFrameworkFactory.EPHEMERAL)
+                .unwantedNamespace()
+                .isAbsoluteAddress()
+                .forPath(v.path + '/' + v.id, v.data);
             }
         }
 
@@ -213,8 +213,8 @@ const randomGetNode = function (o) {
     return o[arr[key]];
 };
 // 检查zk上节点的正确性 并返回消费节点
-const checkParamAndGetConsumeNodeData =  function (serverZk, serverName) {
-    if (serverZk.children.length > 0){    // 对应的服务下存在消费节点
+const checkParamAndGetConsumeNodeData = function (serverZk, serverName) {
+    if (serverZk.children.length > 0) {    // 对应的服务下存在消费节点
         const consumeNode = randomGetNode(serverZk.childrenData);   // 随机获取一个消费节点
         if (!consumeNode) {
             coreLogger.warn(`path=${serverZk.path} not found consume node`);
@@ -225,8 +225,8 @@ const checkParamAndGetConsumeNodeData =  function (serverZk, serverName) {
             coreLogger.warn(`path=${consumeNode.path} data=${consumeNode.data} data not is json string`);
             return false
         }
-        const zkNodeDateBean=  new ZkNodeDateBean(consumeNodeData);
-        if (zkNodeDateBean.check() !== true){
+        const zkNodeDateBean = new ZkNodeDateBean(consumeNodeData);
+        if (zkNodeDateBean.check() !== true) {
             coreLogger.warn(`path=${consumeNode.path} data=${consumeNode.data} check error`);
             return false;
         }
@@ -241,6 +241,9 @@ const checkParamAndGetConsumeNodeData =  function (serverZk, serverName) {
 
 async function startZKByCache(option, client) {
     coreLogger = option.core_log;
+    if (!option.thrift.rootPath) {
+        return;
+    }
     coreLogger.info(option.thrift.rootPath);
     const treeCache = new TreeCache(client, option.thrift.rootPath, 3);
     treeCache.addListener({
@@ -259,7 +262,6 @@ async function startZKByCache(option, client) {
                         myServer.setAddress(zkNodeDateBean.host);
                     }
                 }
-
 
 
             }
@@ -290,14 +292,14 @@ async function startZKByCache(option, client) {
     const cacheDate = treeCache.getData();
 
     const thriftConfig = option.thrift;
-    for (const serverName of Object.keys(thriftConfig.tree)){
+    for (const serverName of Object.keys(thriftConfig.tree)) {
         const server = thriftConfig.tree[serverName];
         // 创建空的ThriftHelp对象
         let myServer = new ThriftHelper()
-            .setName(serverName)
-            .setLogger(server.log)
-            .setServer(server.object)
-            .setPoolNumber(server.poolMin, server.poolMax);
+        .setName(serverName)
+        .setLogger(server.log)
+        .setServer(server.object)
+        .setPoolNumber(server.poolMin, server.poolMax);
         thriftServerMap.set(serverName, myServer);
         if (serverName in cacheDate.childrenData) { // 在zookeeper中注册了对应的服务
             const serverZk = cacheDate.childrenData[serverName];
@@ -348,7 +350,11 @@ const startAMQ = (option) => {
                         return false
                     }
                     return new Promise((resolve, reject) => {
-                        producer.send([{topic: mq.topic, messages: JSON.stringify(message), key: 'test'}], (err, data) => {
+                        producer.send([{
+                            topic: mq.topic,
+                            messages: JSON.stringify(message),
+                            key: 'test'
+                        }], (err, data) => {
                             if (err) reject(err);
                             else resolve(data);
                         })
@@ -363,9 +369,14 @@ const startAMQ = (option) => {
 
 };
 const basicSendMail = async function (message) {
-    if (!(_basicSendMail instanceof  Function)) coreLogger.error(`_basicSendMail not is Function, pls check the config.amq.mail config,so message not send`);
-    return await _basicSendMail(message);
+    if (typeof _basicSendMail !==  'function') {
+        coreLogger.error(`_basicSendMail not is Function, pls check the config.amq.mail config,so message not send`);
+    }else{
+        return await _basicSendMail(message);
+    }
 };
+
+
 /**
  * 启动服务
  * @param options
@@ -373,7 +384,26 @@ const basicSendMail = async function (message) {
  */
 const start = (options, callback) => {
     checkParams(options);
-    client = CuratorFrameworkFactory.builder()
+    if (callback === undefined) {
+        return new Promise((resolve, reject) => {
+            client = CuratorFrameworkFactory.builder()
+            .connectString(options.zk.url)
+            .build(async function () {
+                try {
+                    // await startZK(options, client);
+                    await startZKByCache(options, client);
+                    startWeb(options);
+                    startAMQ(options);
+
+                    resolve();
+                } catch (e) {
+                    reject(e);
+                }
+            });
+            client.start();
+        })
+    } else {
+        client = CuratorFrameworkFactory.builder()
         .connectString(options.zk.url)
         .build(async function () {
             try {
@@ -381,13 +411,14 @@ const start = (options, callback) => {
                 await startZKByCache(options, client);
                 startWeb(options);
                 startAMQ(options);
-            }catch (e){
-                console.log(e)
+                callback();
+            } catch (e) {
+                callback(e);
             }
-
-            callback();
         });
-    client.start();
+        client.start();
+    }
+
 };
 /**
  * 退出
