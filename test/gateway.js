@@ -23,11 +23,40 @@ const serviceConfig = {
                 "data": "111"
             }
         ]
-    }
+    },
+    "mq": {
+        "gateway": {
+            "protocol": "amqp",
+            "hostname": "120.92.108.221",
+            "port": "5672",
+            "username": "test",
+            "password": "123456",
+            "vhost": "/gateway"
+        },
+        "admin_service": {
+            "protocol": "amqp",
+            "hostname": "120.92.108.221",
+            "port": "5672",
+            "username": "test",
+            "password": "123456",
+            "vhost": "/service/admin"
+        }
+    },
+    "http_routers": [
+        {
+            "mq_name": "gateway",
+            "router_keys": "test.router",
+
+        },{
+            "mq_name": "admin_service",
+            "router_keys": "test.router"
+        }
+
+    ]
 };
 const {start, getThrift, AbstractSqlBean, basicSendMail} = require('../index');
 (async function () {
     await start(serviceConfig);
-    console.log( await basicSendMail({to:'821561230@qq.com',subject: '111', body:'111111'}));
+    console.log(await basicSendMail({to: '821561230@qq.com', subject: '111', body: '111111'}));
 })()
 
