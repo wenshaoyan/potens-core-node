@@ -5,12 +5,27 @@
 'use strict';
 const amqpConnectMap = new Map();
 const CoreError = require('../exception/core-error');
-const {loadDirFiles} = require('../util/sys-util');
+const {loadDirFiles, getRouterType} = require('../util/sys-util');
 const path = require('path');
+let coreLog;
 const ex = {
 
 };
 
+const routerConfig = {
+    _source: []
+};
+const routerValidator = {
+    _source: []
+
+};
+const routerController = {
+    _source: []
+
+};
+const packages = {
+
+};
 let amqp = null;
 class AmqpConnect{
     constructor(config){
@@ -70,7 +85,8 @@ class AmqpConnect{
     }
 }
 class AmqpHelper{
-    static async start(allConfig, projectDir){
+    static async start(allConfig, projectDir, _coreLog){
+        coreLog = _coreLog;
         amqp = require('amqplib');
 
         for (let name in allConfig.connects) {
@@ -83,17 +99,29 @@ class AmqpHelper{
                 const amqpConnect = amqpConnectMap.get(router.mq_name);
                 let list = [projectDir];
                 list = list.concat(router.router_dir.split('.'));
-                if (Array.isArray(loadDirFiles(path.join(...list)))) {
-
-                } else {
-                    throw new CoreError({code: 100, message: `${router.mq_name} not in rabbitmq.connect`})
+                const pathList = loadDirFiles(path.join(...list));
+                CoreError.isArray(pathList, `${router.mq_name} not in rabbitmq.connect`);
+                for (const file of pathList) {
+                    const re = getRouterType(file);
+                    if ('message' in re) {
+                        coreLog.warn(re.message);
+                        continue;
+                    }
+                    const dirName = path.basename(path.dirname(file));
+                    const packageName = `${router.router_dir}.${dirName}`;
+                    if (packageName in packages) {
+                        packages[packageName][re.type] ={o: require(file), s: file};
+                    } else {
+                        packages[packageName] = {};
+                        packages[packageName][re.type] ={o: require(file), s: file};
+                    }
                 }
-
             } else {
                 throw new CoreError({code: 100, message: `${router.mq_name} not in rabbitmq.connect`})
             }
-            // console.log(router)
         }
+        coreLog.debug(packages);
+
     }
     static getConnect(name) {
         if (amqpConnectMap.has(name)){

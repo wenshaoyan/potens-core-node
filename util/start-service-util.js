@@ -4,7 +4,6 @@
  */
 const {CuratorFrameworkFactory, TreeCache} = require('zk-curator');
 const ThriftHelper = require('../helper/thrift-helper');
-const connectZkHelper = require('../helper/connect-zk-helper');
 const dict = require('../exception/dict');
 const CoreError = require('../exception/core-error');
 const systemPath = require('path');
@@ -137,73 +136,6 @@ const checkMailMessage = (message) => {
     }
     return false;
 };
-
-/**
- * 连接zk 并创建thrift连接
- * @param options
- * @param client
- * @return {Promise<void>}
- */
-async function startZK(options, client) {
-    coreLogger = options.core_log;
-    for (let key in options.thrift) {
-        try {
-            const value = options.thrift[key];
-            const name = key;
-            let parentPath = value.path;
-            const connectZk = new connectZkHelper(parentPath, client, value.log, name);
-            const address = await connectZk.getServer();    // 获取连接dal的地址
-            const pool = {
-                min: 1,
-                max: 5
-            };
-            if (value.poolMax && typeof value.poolMax === 'number') {
-                pool.max = value.poolMax;
-            }
-            if (value.poolMin && typeof value.poolMin === 'number') {
-                pool.min = value.poolMin;
-            }
-            // 创建thrift的连接
-            let myServer = await new ThriftHelper()
-            .setName(name)
-            .setLogger(value.log)
-            .setServer(value.object)
-            .setPoolNumber(pool.min, pool.max)
-            .setAddress(address.data);
-            // 监听连接的变化 并修改
-            connectZk.setServer(myServer);
-            thriftServerMap.set(name, myServer);
-
-        } catch (e) {
-            coreLogger.error(e);
-        }
-    }
-    try {
-        if (options.zk.register instanceof Array) {
-            for (let v of options.zk.register) {
-                // v.path = v.path.replace(/^\//, '');
-                const state = await client.checkExists()
-                .unwantedNamespace()
-                .forPath(v.path);
-                if (!state) {   // path不存在
-                    const e = dict.getExceptionByType('start-zk');
-                    throw e;
-                }
-
-                if (typeof v.data === 'object') v.data = JSON.stringify(v.data);
-                const path = await client.create()
-                .withMode(CuratorFrameworkFactory.EPHEMERAL)
-                .unwantedNamespace()
-                .isAbsoluteAddress()
-                .forPath(v.path + '/' + v.id, v.data);
-            }
-        }
-
-    } catch (e) {
-        coreLogger.error(e);
-        process.exit();
-    }
-}
 
 // 从json中随机获取一个对象
 const randomGetNode = function (o) {
@@ -370,7 +302,7 @@ const startAMQ = (option) => {
 // 连接rabbitmq
 const startRabbitMq = async function (option) {
     if (typeof option.rabbitmq === 'object') {
-        await AmqpHelper.start(option.rabbitmq, option.project_dir);
+        await AmqpHelper.start(option.rabbitmq, option.project_dir, option.core_log);
     }
 };
 

@@ -6,7 +6,7 @@
 const crypto = require('crypto');
 let fs = require('fs');
 let path = require('path');
-
+const routerTypeSet = new Set(['config', 'controller', 'validator']);
 class SysUtil {
     static md5(str) {
         return crypto.createHash('md5').update(str).digest('hex');
@@ -84,5 +84,26 @@ class SysUtil {
             return false;
         }
     }
+    // 判断router目录下对应的文件类型  config、controller、validator
+    static getRouterType(file) {
+        const fileName = path.basename(file);
+
+        const split = fileName.split('.');
+        if (split.length !== 3) {
+            return {message: `${file};filename error,can't have three point,for example:user.config.js`};
+        }
+        const dirName = path.basename(path.dirname(file));
+        if (dirName !== split[0]) {
+            return {message: `no load ${file};${split[0]} is not the same as the dir name,for example:user.config.js,he in the "user" dir`};
+        }
+        if (split[2] !== 'js' && split[2] !== 'json') {
+            return {message: `${file};suffix only is js or json`};
+        }
+        if (!routerTypeSet.has(split[1])) {
+            return {message: `${file};type only is config or controller or validator`};
+        }
+        return {type:split[1]};
+    }
+
 }
 module.exports = SysUtil;
