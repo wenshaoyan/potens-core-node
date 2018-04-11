@@ -1,6 +1,6 @@
 module.exports = {
-    test: function (params) {
-        return "yes";
+    test: function (ctx) {
 
+        return "yes";
     }
 };

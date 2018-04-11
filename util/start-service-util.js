@@ -10,6 +10,7 @@ const CoreError = require('../exception/core-error');
 const systemPath = require('path');
 const {JSONParse} = require('./sys-util');
 const ZkNodeDateBean = require('../bean/zk-node-data-bean');
+const AmqpHelper = require('../helper/amqp-helper');
 
 const LogDefault = require('./log-default-util');
 let coreLogger = new LogDefault();
@@ -32,6 +33,7 @@ const checkParams = (option) => {
     CoreError.isLogger(option.core_log, 'option.core_log not is logger');
     CoreError.isJson(option.zk, 'option.zk not is json');
     CoreError.isStringNotNull(option.zk.url, 'option.zk.url not is json');
+    CoreError.isStringNotNull(option.project_dir, 'option.project_dir not is string');
     const defaultThrift = {
         "timeout": 10000,
         "poolMax": 10,
@@ -363,15 +365,19 @@ const startAMQ = (option) => {
             }
 
         })
-
     }
-
-
 };
+// 连接rabbitmq
+const startRabbitMq = async function (option) {
+    if (typeof option.rabbitmq === 'object') {
+        await AmqpHelper.start(option.rabbitmq, option.project_dir);
+    }
+};
+
 const basicSendMail = async function (message) {
-    if (typeof _basicSendMail !==  'function') {
+    if (typeof _basicSendMail !== 'function') {
         coreLogger.error(`_basicSendMail not is Function, pls check the config.amq.mail config,so message not send`);
-    }else{
+    } else {
         return await _basicSendMail(message);
     }
 };
@@ -380,45 +386,17 @@ const basicSendMail = async function (message) {
 /**
  * 启动服务
  * @param options
- * @param callback
  */
-const start = (options, callback) => {
+const start = async (options) => {
     checkParams(options);
-    if (callback === undefined) {
-        return new Promise((resolve, reject) => {
-            client = CuratorFrameworkFactory.builder()
-            .connectString(options.zk.url)
-            .build(async function () {
-                try {
-                    // await startZK(options, client);
-                    await startZKByCache(options, client);
-                    startWeb(options);
-                    startAMQ(options);
-
-                    resolve();
-                } catch (e) {
-                    reject(e);
-                }
-            });
-            client.start();
-        })
-    } else {
-        client = CuratorFrameworkFactory.builder()
-        .connectString(options.zk.url)
-        .build(async function () {
-            try {
-                // await startZK(options, client);
-                await startZKByCache(options, client);
-                startWeb(options);
-                startAMQ(options);
-                callback();
-            } catch (e) {
-                callback(e);
-            }
-        });
-        client.start();
-    }
-
+    client = await CuratorFrameworkFactory.builder()
+    .connectString(options.zk.url)
+    .build()
+    .start();
+    await startZKByCache(options, client);
+    startWeb(options);
+    startAMQ(options);
+    await startRabbitMq(options);
 };
 /**
  * 退出
@@ -428,5 +406,5 @@ const exit = () => {
 };
 
 module.exports = {
-    getThrift, start, exit, basicSendMail
+    getThrift, start, exit, basicSendMail, AmqpHelper
 };

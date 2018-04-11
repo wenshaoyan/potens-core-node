@@ -21,12 +21,13 @@
     "generic-pool": "^3.2.0",
     "kafka-node": "^2.4.1",
     "thrift": "^0.10.0",
-    "zk-curator": "^1.0.8"
+    "zk-curator": "^1.0.10"
   },
   "devDependencies": {
     "koa": "^2.2.0",
     "log4j2-node": "^1.0.3",
     "graphql-tools": "^2.20.1",
-    "graphql": "^0.12.3"
+    "graphql": "^0.12.3",
+    "amqplib": "^0.5.2"
   }
 }

@@ -1,3 +1,6 @@
 [
-  {"key":"/a/b/v1","method":"get","controller":"test"}
+  {
+    "routerKey": "get.v1.a.b",
+    "controller": "test"
+  }
 ]
