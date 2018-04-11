@@ -1,0 +1,6 @@
+[
+  {
+    "routerKey": "get.v1.a.b",
+    "controller": "test"
+  }
+]

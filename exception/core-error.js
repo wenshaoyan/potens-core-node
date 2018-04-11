@@ -91,14 +91,14 @@ class CoreError extends Error {
         if (typeof o === 'number') {
             return true;
         }
-        throw new CoreError(message, 6);
+        throw new CoreError(message, 7);
     }
     // 是否在指定的范围
     static isScope(o, scope, message) {
         if (o >= scope[0] && o<= scope[1]) {
             return true;
         }
-        throw new CoreError(message, 6);
+        throw new CoreError(message, 8);
     }
 }
 
