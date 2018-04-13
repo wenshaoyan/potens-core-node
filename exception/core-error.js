@@ -10,31 +10,15 @@ class CoreError extends Error {
         this.name = 'CoreError';
         if (typeof code === 'object') {
             const obj = code;
-            this._code = obj.code;
-            this._message = obj.message;
+            this.code = obj.code;
+            this.message = obj.message;
         } else {
-            this._code = code;
-            this._message = message;
+            this.code = code;
+            this.message = message;
         }
 
     }
 
-    get code() {
-        return this._code;
-    }
-
-    set code(value) {
-        this._code = value;
-    }
-
-
-    get message() {
-        return this._message;
-    }
-
-    set message(value) {
-        this._message = value;
-    }
 
     // 必须为json对象
     static isJson(o, message) {
