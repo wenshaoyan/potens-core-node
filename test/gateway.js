@@ -33,7 +33,7 @@ const serviceConfig = {
                 "port": "5672",
                 "username": "admin-project",
                 "password": "314106",
-                "vhost": "/gateway"
+                "vhost": "/gateway",
             },
             "admin_service": {
                 "protocol": "amqp",
@@ -41,15 +41,14 @@ const serviceConfig = {
                 "port": "5672",
                 "username": "admin-project",
                 "password": "314106",
-                "vhost": "/service/admin"
+                "vhost": "/service/admin",
+                "consume_config": {
+                    "router_dir": "test.router",
+                    "default_ex": "amq.topic",
+                    "default_sync": false,
+                }
             }
-        },
-        "routers": [
-            {
-                "mq_name": "gateway",
-                "router_dir": "test.router",
-            }
-        ]
+        }
 
     }
 };

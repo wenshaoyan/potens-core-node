@@ -79,7 +79,8 @@ class SysUtil {
      */
     static JSONParse(o) {
         try {
-            return JSON.parse(o)
+            o = JSON.parse(o);
+            return typeof o === 'object'?o:false;
         } catch (e) {
             return false;
         }

@@ -1,7 +1,8 @@
 {
   "config": [{
-    "routerKey": "get.v1.a.b",
+    "routerKey": "get.v1.a.b.c",
     "controller": "users",
-    "ex": "amqp.topic"
+    "ex": "amq.topic",
+    "sync": true
   }]
 }

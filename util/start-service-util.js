@@ -30,6 +30,7 @@ let _basicSendMail;
 const checkParams = (option) => {
     CoreError.isJson(option, 'option not is json');
     CoreError.isLogger(option.core_log, 'option.core_log not is logger');
+    coreLogger = option.core_log;
     CoreError.isJson(option.zk, 'option.zk not is json');
     CoreError.isStringNotNull(option.zk.url, 'option.zk.url not is json');
     CoreError.isStringNotNull(option.project_dir, 'option.project_dir not is string');
@@ -174,9 +175,8 @@ const checkParamAndGetConsumeNodeData = function (serverZk, serverName) {
 };
 
 async function startZKByCache(option, client) {
-    coreLogger = option.core_log;
     if (!option.thrift.rootPath) {
-        return;
+        return false;
     }
     coreLogger.info(option.thrift.rootPath);
     const treeCache = new TreeCache(client, option.thrift.rootPath, 3);
@@ -230,10 +230,10 @@ async function startZKByCache(option, client) {
         const server = thriftConfig.tree[serverName];
         // 创建空的ThriftHelp对象
         let myServer = new ThriftHelper()
-        .setName(serverName)
-        .setLogger(server.log)
-        .setServer(server.object)
-        .setPoolNumber(server.poolMin, server.poolMax);
+            .setName(serverName)
+            .setLogger(server.log)
+            .setServer(server.object)
+            .setPoolNumber(server.poolMin, server.poolMax);
         thriftServerMap.set(serverName, myServer);
         if (serverName in cacheDate.childrenData) { // 在zookeeper中注册了对应的服务
             const serverZk = cacheDate.childrenData[serverName];
@@ -246,6 +246,7 @@ async function startZKByCache(option, client) {
             coreLogger.warn(`zk=${option.thrift.rootPath} not found child=${serverName}`);
         }
     }
+    return true;
 
 
 }
@@ -258,7 +259,9 @@ const startWeb = (options) => {
     const koa = require('../web/koa-web');
     if (options.web && options.web.app && options.web.port) {
         koa.start(options.web.app, options.web.port);
+        return true;
     }
+    return false;
 
 };
 /**
@@ -267,7 +270,6 @@ const startWeb = (options) => {
  */
 const startAMQ = (option) => {
     const amqConfig = option.amq;
-    coreLogger = option.core_log;
     if (typeof amqConfig === 'object') {
         Object.keys(amqConfig).forEach(mqName => {
             const mq = amqConfig[mqName];
@@ -296,14 +298,18 @@ const startAMQ = (option) => {
                 };
             }
 
-        })
+        });
+        return true;
     }
+    return false;
 };
 // 连接rabbitmq
 const startRabbitMq = async function (option) {
     if (typeof option.rabbitmq === 'object') {
         await AmqpHelper.start(option.rabbitmq, option.project_dir, option.core_log);
+        return true;
     }
+    return false;
 };
 
 const basicSendMail = async function (message) {
@@ -319,16 +325,44 @@ const basicSendMail = async function (message) {
  * 启动服务
  * @param options
  */
-const start = async (options) => {
+const start = async(options) => {
+    const SCP_TIME = new Date().getTime();
     checkParams(options);
+    const ECP_TIME = new Date().getTime();
+    coreLogger.info(`checkParams complete,consumption time ${ECP_TIME - SCP_TIME}ms`);
+
+    const SCZ_TIME = new Date().getTime();
     client = await CuratorFrameworkFactory.builder()
-    .connectString(options.zk.url)
-    .build()
-    .start();
-    await startZKByCache(options, client);
-    startWeb(options);
-    startAMQ(options);
-    await startRabbitMq(options);
+        .connectString(options.zk.url)
+        .build()
+        .start();
+    const ECZ_TIME = new Date().getTime();
+    coreLogger.info(`connectZookeeper complete,consumption time ${ECZ_TIME - SCZ_TIME}ms`);
+
+    const SZC_TIME = new Date().getTime();
+    const IS_ZC = await startZKByCache(options, client);
+    const EZC_TIME = new Date().getTime();
+    if (IS_ZC) coreLogger.info(`startZKByCache complete,consumption time ${EZC_TIME - SZC_TIME}ms`);
+
+    const SW_TIME = new Date().getTime();
+    const IS_W = startWeb(options);
+    const EW_TIME = new Date().getTime();
+    if (IS_W) coreLogger.info(`startWeb complete,consumption time ${EW_TIME - SW_TIME}ms`);
+
+
+    const SK_TIME = new Date().getTime();
+    const IS_K = startAMQ(options);
+    const EK_TIME = new Date().getTime();
+    if (IS_K) coreLogger.info(`startAMQ complete,consumption time ${EK_TIME - SK_TIME}ms`);
+
+
+    const SRM_TIME = new Date().getTime();
+    const IS_RM = await startRabbitMq(options);
+    const ERM_TIME = new Date().getTime();
+    if (IS_RM) coreLogger.info(`startRabbitMq complete,consumption time ${ERM_TIME - SRM_TIME}ms`);
+
+
+
 };
 /**
  * 退出

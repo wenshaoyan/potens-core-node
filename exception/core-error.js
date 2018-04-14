@@ -84,6 +84,14 @@ class CoreError extends Error {
         }
         throw new CoreError(message, 8);
     }
+    // 必须为bool
+    static isBool(o, message) {
+        if (typeof o === 'boolean') {
+            return true;
+        }
+        throw new CoreError(message, 9);
+    }
+
 }
 
 module.exports = CoreError;

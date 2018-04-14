@@ -5,28 +5,15 @@
 'use strict';
 const amqpConnectMap = new Map();
 const CoreError = require('../exception/core-error');
-const {loadDirFiles, getRouterType} = require('../util/sys-util');
+const {loadDirFiles} = require('../util/sys-util');
+const RouterBean = require('../bean/router');
 const path = require('path');
+const Context = require('../bean/context');
 let coreLog;
-const ex = {
 
-};
-
-const routerConfig = {
-    _source: []
-};
-const routerValidator = {
-    _source: []
-
-};
-const routerController = {
-    _source: []
-
-};
-const routers = {};
 let amqp = null;
-class AmqpConnect{
-    constructor(config){
+class AmqpConnect {
+    constructor(config) {
         this._config = config;
         this._conn = null;
         this._ch = null;
@@ -61,16 +48,28 @@ class AmqpConnect{
         this.ch = await this.conn.createChannel();
         await this.ch.prefetch(100);
     }
-    async _bindQueue(queue, ex, routerConfig, callback) {
-        await this.ch.assertQueue(queue,{durable: false,autoDelete: true});
-        await this.ch.bindQueue(queue, ex, routerConfig.routerKey);
-        this.ch.consume(queue, function (msg) {
-            const ctx = {};
-            console.log('============', msg.content.toString());
-        });
+
+    async _bindQueue(routerConfig) {
+        await this.ch.assertQueue(routerConfig.config.queueName, {durable: false, autoDelete: true});
+        await this.ch.bindQueue(routerConfig.config.queueName, routerConfig.config.ex, routerConfig.config.routerKey);
+        this.ch.consume(routerConfig.config.queueName, async(msg) => {
+            const ctx = new Context(routerConfig);
+            const consumeResult = await ctx.consume(msg.content);
+            if (consumeResult.code > 0) {
+                coreLog.warn(consumeResult.message);
+            }
+            if (!ctx.sync) {
+                // console.log(this.body);
+                this.ch.sendToQueue(msg.properties.replyTo,
+                    Buffer.from(JSON.stringify(ctx.body)),
+                    {correlationId: msg.properties.correlationId});
+            }
+            this.ch.ack(msg);
+        }, {noAck: false});
 
     }
-    async pubTopic(routerKey,message) {
+
+    async pubTopic(routerKey, message) {
         if (message === undefined || message === undefined) {
             message = {};
         }
@@ -78,78 +77,69 @@ class AmqpConnect{
         message = JSON.stringify(message);
         await this.ch.publish('amq.topic', routerKey, Buffer.from(message));
     }
+
     async rpcTopic(routerKey, message) {
 
     }
 }
-class AmqpHelper{
-    static async start(allConfig, projectDir, _coreLog){
+class AmqpHelper {
+    static async start(allConfig, projectDir, _coreLog) {
         coreLog = _coreLog;
         if (!amqp) amqp = require('amqplib');
         for (let name in allConfig.connects) {
             const amqpConnect = new AmqpConnect(allConfig.connects[name]);
             amqpConnectMap.set(name, amqpConnect);
             await amqpConnect.connect();
-        }
-        // 加载router下的代码
-        for (let router of allConfig.routers) {
-            if (amqpConnectMap.has(router.mq_name)){
+            const consume_config = allConfig.connects[name].consume_config;
+            if (consume_config && consume_config.router_dir) {
+                CoreError.isStringNotNull(consume_config.router_dir, `rabbitmq.${name}.consume_config.router_dir not a string`);
+                CoreError.isStringNotNull(consume_config.default_ex, `rabbitmq.${name}.consume_config.default_ex not a string`);
+                CoreError.isBool(consume_config.default_sync, `rabbitmq.${name}.consume_config.default_ex not a boolean`);
 
                 let list = [projectDir];
-                list = list.concat(router.router_dir.split('.'));
+                list = list.concat(consume_config.router_dir.split('.'));
                 const pathList = loadDirFiles(path.join(...list));
-                CoreError.isArray(pathList, `${router.mq_name} not in rabbitmq.connect`);
-                for (const file of pathList) {
-                    const re = getRouterType(file);
-                    if ('message' in re) {
-                        coreLog.warn(re.message);
-                        continue;
-                    }
-                    const dirName = path.basename(path.dirname(file));
-                    const packageName = `${router.router_dir}.${dirName}`;
-                    if (dirName in routers) {
-                        if (routers[dirName][re.type]) {
-                            coreLog.error(`${dirName} is exist file=${routers[packageName][re.type].s}`);
-                            continue;
-                        }
-                        routers[dirName][re.type] ={o: require(file), s: file};
+                CoreError.isArray(pathList, `loadDirFiles error! path=${path.join(...list)} not exist`);
+                const routerBean = new RouterBean(pathList, consume_config.router_dir, coreLog, {
+                    ex: consume_config.default_ex,
+                    sync: consume_config.default_sync
+                });
+                Object.keys(routerBean.routerKeys).forEach(ex => {
+                    const currentRouterConfigs = routerBean.routerKeys[ex];
+                    Object.keys(currentRouterConfigs).forEach(key => {
+                        const currentRouterConfig = currentRouterConfigs[key];
+                        amqpConnect._bindQueue(currentRouterConfig);
+                    })
 
-                    } else {
-                        routers[dirName] = {
-                            _packageName: packageName
-                        };
-                        routers[dirName][re.type] ={o: require(file), s: file};
-                    }
-                }
-            } else {
-                throw new CoreError(`${router.mq_name} not in rabbitmq.connect`, 100);
+                })
             }
         }
-        const amqpConnect = amqpConnectMap.get('admin_service');
-        // 添加监听
-        Object.keys(routers).forEach(routerName => {
-            const router = routers[routerName];
-            if (router.controller) {
+        /*const amqpConnect = amqpConnectMap.get('admin_service');
+         // 添加监听
+         Object.keys(routers).forEach(routerName => {
+         const router = routers[routerName];
+         if (router.controller) {
 
-            }
-            if (router.config){
-                router.config.o.config.forEach(v => amqpConnect._bindQueue(`admin_service.${routerName}`, 'amq.topic', v));
+         }
+         if (router.config){
+         router.config.o.config.forEach(v => amqpConnect._bindQueue(`admin_service.${routerName}`, 'amq.topic', v));
 
-            }
-
-
-            if (router.validator) {
+         }
 
 
-            }
-            console.log(router)
-        });
+         if (router.validator) {
+
+
+         }
+         console.log(router)
+         });*/
 
         // coreLog.debug(routers);
 
     }
+
     static getConnect(name) {
-        if (amqpConnectMap.has(name)){
+        if (amqpConnectMap.has(name)) {
             return amqpConnectMap.get(name);
         } else {
             throw new CoreError(`${name} not in rabbitmq.connect`, 100);

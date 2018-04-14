@@ -1,6 +1,9 @@
 module.exports = {
-    users: function (ctx) {
+    users: (ctx)=> {
+        ctx.body = {'a':1};
 
-        return "yes";
+    },
+    hello: (ctx) => {
+        return 'world';
     }
 };
