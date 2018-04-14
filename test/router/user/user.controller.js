@@ -1,9 +1,10 @@
 module.exports = {
     users: (ctx)=> {
-        ctx.body = {'a':1};
-
-    },
-    hello: (ctx) => {
-        return 'world';
+        ctx.body = [{
+            user_id: 1,
+            user_name: 'admin'
+        }];
     }
+
+
 };

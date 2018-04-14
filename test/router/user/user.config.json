@@ -1,6 +1,6 @@
 {
   "config": [{
-    "routerKey": "get.v1.a.b",
+    "routerKey": "get.v1.users",
     "controller": "users"
   }]
 }

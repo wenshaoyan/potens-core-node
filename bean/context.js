@@ -2,9 +2,11 @@
  * Created by yanshaowen on 2018/4/11.
  */
 'use strict';
-// 启动时间
-const startTime = new Date().getTime();
 const {JSONParse} = require('../util/sys-util');
+const PotensX = require('../potens-x');
+const {randomWord} = require('../util/sys-util');
+
+
 const isJson = function (o) {
     return typeof o === 'object' && !Array.isArray(o);
 
@@ -16,11 +18,11 @@ const isArray = function (o) {
 
 const Context = (function () {
 
-
     const _execValidator = Symbol('_execValidator');
     const _execController = Symbol('_execController');
     const _exec = Symbol('_exec');
     const _routerConfig = Symbol('_routerConfig');
+    const _execResponse = Symbol('_execResponse');
 
     /**
      * 执行参数检查的任务
@@ -40,29 +42,50 @@ const Context = (function () {
 
     };
     /**
+     * 执行响应
+     */
+    const execResponse = async function () {
+        const response = {
+            id: `res-${randomWord(true, 10, 10)}`,
+        };
+        if (this.body === null || this.body === undefined) {
+            response['status'] = 204;
+        } else {
+            response['status'] = 200;
+            response['body'] = this.body;
+        }
+        response.server_name = PotensX.get('server_name');
+        response.service_id = PotensX.get('service_id');
+        this.response = response;
+
+    };
+    /**
      * 开始执行
      */
     const exec = async function () {
         await this[_execValidator]();
         await this[_execController]();
+        this[_execResponse]();
     };
+
+
     class Context {
         constructor(routerConfig) {
-            this.createTime = new Date().getTime(); // 当前ctx创建时间
+            this.startTime = new Date().getTime(); // 当前ctx创建时间
             this[_routerConfig] = routerConfig;
             this[_execValidator] = execValidator;
             this[_execController] = execController;
             this[_exec] = exec;
+            this[_execResponse] = execResponse;
             this.sync = routerConfig.config.sync;
+            this.response = {};
             this.request = {
                 params: {},
                 query: {},
                 body: {},
-                call_chain: []
+                call_chain: [],
+                id: ''
             };
-            // this.respose
-
-
         }
 
         /**
@@ -91,7 +114,10 @@ const Context = (function () {
             if (isJson((jsonRe.params))) this.request.params = jsonRe.params;
             if (isJson((jsonRe.query))) this.request.query = jsonRe.query;
             if (isJson((jsonRe.body))) this.request.body = jsonRe.body;
-            // if (isJson((jsonRe.body))) this.request.body = jsonRe.body;
+            if (isArray((jsonRe.call_chain))) this.request.call_chain = jsonRe.call_chain;
+            if (typeof jsonRe.id === 'string') this.request.id = jsonRe.id;
+            if (typeof jsonRe.server_name === 'string') this.request.server_name = jsonRe.server_name;
+            if (typeof jsonRe.service_id === 'string') this.request.service_id = jsonRe.service_id;
 
             disposeResult.code = 0;
 

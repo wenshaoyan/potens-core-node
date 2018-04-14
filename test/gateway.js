@@ -15,6 +15,8 @@ const serviceConfig = {
     "project_dir": path.resolve(__dirname, '..'),
     "node_env": "develop",
     "core_log": log4j2.getLogger('core'),
+    "server_name": "gateway",
+    "service_id": "1.0.0.0",
     "zk": {     // 必选
         "url": process.env.ZK_URL,
         "register": [
@@ -52,7 +54,7 @@ const serviceConfig = {
 
     }
 };
-const {start, getThrift, AbstractSqlBean, basicSendMail, AmqpHelper} = require('../index');
+const {start, getThrift, AbstractSqlBean, basicSendMail, AmqpHelper, exit} = require('../index');
 (async function () {
     try {
         await start(serviceConfig);
@@ -62,4 +64,22 @@ const {start, getThrift, AbstractSqlBean, basicSendMail, AmqpHelper} = require('
         console.log(e);
     }
 })();
+
+
+
+process.on('exit',function(code){
+    exit(); // 释放连接
+    console.log(code)
+
+});
+process.on('uncaughtException',function(){
+    process.exit(1000);
+});
+process.on('SIGINT',function () {
+    process.exit(1001);
+});
+process.on('SIGTERM',function () {
+    process.exit(1002);
+});
+
 

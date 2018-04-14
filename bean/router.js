@@ -4,9 +4,10 @@
 'use strict';
 const {getRouterType} = require('../util/sys-util');
 const path = require('path');
-let coreLog;
+const PotensX = require('../potens-x');
+
 class Router{
-    constructor(pathList, routerDir, _coreLog, defaultConfig) {
+    constructor(pathList, routerDir, defaultConfig) {
         this._pathList = pathList;
         this._routerDir = routerDir;
         this._defaultConfig = defaultConfig;
@@ -14,7 +15,7 @@ class Router{
         this._routerController = {};
         this._routerValidator = {};
         this._routerKeys = {};
-        if (!coreLog) coreLog = _coreLog;
+
         this.setFileList();
     }
 
@@ -80,6 +81,7 @@ class Router{
      * 提取出router下的所有js或json 并检查文件 生成routerKeys
      */
     setFileList() {
+        const coreLog = PotensX.get('core_log');
         for (const file of this.pathList) {
             const re = getRouterType(file);
             if ('message' in re) {
@@ -117,7 +119,9 @@ class Router{
                 let controllerObject;
                 let validatorObject;
                 if (!v.routerKey || !v.controller) {
-                    coreLog.warn(`config skip! because ${current['_packageName']}.config='${JSON.stringify(v)}' routerKey or controller is null or undefined`)
+                    coreLog.warn(`config skip! because ${current['_packageName']}.config='${JSON.stringify(v)}' routerKey or controller is null or undefined`);
+                } else if (!this.routerController[routerName]){
+                    coreLog.warn(`config skip! because ${current['_packageName']}.controller not exist`);
                 } else if (!(v.controller in (controllerObject = this.routerController[routerName].o))) {
                     coreLog.warn(`config skip! because ${current['_packageName']}.config='${JSON.stringify(v)}' not found corresponding controller`);
                 } else if (v.validator && !(v.validator in (validatorObject = this.routerValidator[routerName].o))) {

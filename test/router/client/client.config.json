@@ -1,0 +1,5 @@
+{
+  "config": [
+    {"routerKey": "get.v1.clients", "controller": "clients"}
+  ]
+}

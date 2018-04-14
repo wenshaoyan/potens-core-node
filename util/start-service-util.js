@@ -10,10 +10,10 @@ const systemPath = require('path');
 const {JSONParse} = require('./sys-util');
 const ZkNodeDateBean = require('../bean/zk-node-data-bean');
 const AmqpHelper = require('../helper/amqp-helper');
-
 const LogDefault = require('./log-default-util');
 let coreLogger = new LogDefault();
 
+const PotensX =require('../potens-x');
 const getThrift = function (name) {
     return thriftServerMap.get(name);
 };
@@ -34,6 +34,16 @@ const checkParams = (option) => {
     CoreError.isJson(option.zk, 'option.zk not is json');
     CoreError.isStringNotNull(option.zk.url, 'option.zk.url not is json');
     CoreError.isStringNotNull(option.project_dir, 'option.project_dir not is string');
+    CoreError.isStringNotNull(option.server_name, 'option.server_name not is string');
+    CoreError.isStringNotNull(option.service_id, 'option.service_id not is string');
+
+
+    PotensX.set('core_log', option.core_log);
+    PotensX.set('project_dir', option.project_dir);
+    PotensX.set('server_name', option.server_name);
+    PotensX.set('service_id', option.service_id);
+
+
     const defaultThrift = {
         "timeout": 10000,
         "poolMax": 10,
@@ -306,7 +316,7 @@ const startAMQ = (option) => {
 // 连接rabbitmq
 const startRabbitMq = async function (option) {
     if (typeof option.rabbitmq === 'object') {
-        await AmqpHelper.start(option.rabbitmq, option.project_dir, option.core_log);
+        await AmqpHelper.start(option.rabbitmq);
         return true;
     }
     return false;
@@ -369,6 +379,13 @@ const start = async(options) => {
  */
 const exit = () => {
     client.close();
+    const amqpMap = AmqpHelper.getAllConnectMap();
+
+    for (const conn of amqpMap) {
+        conn[1].close();
+    }
+
+
 };
 
 module.exports = {
