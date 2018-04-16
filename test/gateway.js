@@ -4,17 +4,18 @@ const path = require('path');
 log4j2.configure(
     {
         "appenders": {
-            "console": {"type": "console"}
+            "console": {"type": "console","layout": {type:"detail"}}
         },
         "categories": {
             "default": {"appenders": ["console"], "level": "trace"}
         }
     }
 );
+const logger = log4j2.getLogger('core');
 const serviceConfig = {
     "project_dir": path.resolve(__dirname, '..'),
     "node_env": "develop",
-    "core_log": log4j2.getLogger('core'),
+    "core_log": logger,
     "server_name": "gateway",
     "service_id": "1.0.0.0",
     "zk": {     // 必选
@@ -61,7 +62,7 @@ const {start, getThrift, AbstractSqlBean, basicSendMail, AmqpHelper, exit} = req
         // await basicSendMail({to: '821561230@qq.com', subject: '111', body: '111111'});
         AmqpHelper.getConnect('gateway').pubTopic("get.v1.a.b", {a:1});
     }catch (e){
-        console.log(e);
+        logger.error(e);
     }
 })();
 
@@ -69,7 +70,7 @@ const {start, getThrift, AbstractSqlBean, basicSendMail, AmqpHelper, exit} = req
 
 process.on('exit',function(code){
     exit(); // 释放连接
-    console.log(code)
+    logger.error(code);
 
 });
 process.on('uncaughtException',function(){

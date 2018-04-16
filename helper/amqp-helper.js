@@ -76,7 +76,7 @@ class AmqpConnect {
             this.ch.ack(msg);
             ctx.endTime = new Date().getTime();
 
-            PotensX.get('core_log').info(`routerKey=${routerConfig.config.routerKey} ${ctx.response.status} ${ctx.endTime-ctx.startTime}`)
+            PotensX.get('core_log').info(`routerKey=${routerConfig.config.routerKey} ${ctx.response.status} ${ctx.endTime-ctx.startTime}ms`)
         }, {noAck: false});
 
     }

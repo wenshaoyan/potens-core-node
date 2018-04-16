@@ -4,6 +4,7 @@ module.exports = {
             user_id: 1,
             user_name: 'admin'
         }];
+        console.log(ctx);
     }
 
 
