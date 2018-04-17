@@ -5,7 +5,7 @@
     "type": "git",
     "url": "https://github.com/wenshaoyan/potens-core-node"
   },
-  "description": "基于thrift的后端server的框架",
+  "description": "potens框架，包括rabbitmq,thrift,zookeeper",
   "keywords": [
     "thrift",
     "nodejs"
