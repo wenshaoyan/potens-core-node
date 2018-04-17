@@ -4,7 +4,11 @@ module.exports = {
             user_id: 1,
             user_name: 'admin'
         }];
-        console.log(ctx);
+        return new Promise(re =>{
+            setTimeout(()=> {
+              re();
+            },5000)
+        })
     }
 
 

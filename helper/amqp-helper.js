@@ -68,7 +68,11 @@ class AmqpConnect {
             if (consumeResult.code > 0) {
                 PotensX.get('core_log').warn(consumeResult.message);
             }
-            if (!ctx.sync) {
+            // 如果为rpc请求 怎进行响应
+            if (msg.properties.correlationId !== undefined
+                &&
+                msg.properties.replyTo !== undefined
+            ) {
                 this.ch.sendToQueue(msg.properties.replyTo,
                     Buffer.from(JSON.stringify(ctx.response)),
                     {correlationId: msg.properties.correlationId});
