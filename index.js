@@ -78,6 +78,14 @@ Object.defineProperty(sysUtil, 'baseSchemaString', {
         return baseSchemaString;
     }
 });
+Object.defineProperty(sysUtil, 'test', {
+    enumerable: true,
+    get: function get() {
+        return function () {
+            return 1;
+        };
+    }
+});
 Object.defineProperty(exports, 'SysUtil', {
     enumerable: true,
     get: function get() {

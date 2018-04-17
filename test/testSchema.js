@@ -2,7 +2,8 @@ const { makeExecutableSchema, mergeSchemas } = require('graphql-tools');
 
 const { printSchema } = require('graphql');
 
-const {baseSchemaString} = require('../index');
+const {SysUtil} = require('../index');
+const baseSchemaString = SysUtil.baseSchemaString;
 const s = makeExecutableSchema(baseSchemaString());
 const typeDefs = `
         type Query{

@@ -55,11 +55,10 @@ const serviceConfig = {
 
     }
 };
-const {start, getThrift, AbstractSqlBean, basicSendMail, exit} = require('../index');
+const {Application} = require('../index');
 (async function () {
     try {
-        await start(serviceConfig);
-        // await basicSendMail({to: '821561230@qq.com', subject: '111', body: '111111'});
+        await Application.start(serviceConfig);
     }catch (e){
         logger.error(e);
     }
