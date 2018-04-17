@@ -7,7 +7,7 @@ module.exports = {
         return new Promise(re =>{
             setTimeout(()=> {
               re();
-            },5000)
+            },10)
         })
     }
 

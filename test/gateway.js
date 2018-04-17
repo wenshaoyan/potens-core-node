@@ -55,12 +55,11 @@ const serviceConfig = {
 
     }
 };
-const {start, getThrift, AbstractSqlBean, basicSendMail, AmqpHelper, exit} = require('../index');
+const {start, getThrift, AbstractSqlBean, basicSendMail, exit} = require('../index');
 (async function () {
     try {
         await start(serviceConfig);
         // await basicSendMail({to: '821561230@qq.com', subject: '111', body: '111111'});
-        AmqpHelper.getConnect('gateway').pubTopic("get.v1.a.b", {a:1});
     }catch (e){
         logger.error(e);
     }

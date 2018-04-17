@@ -59,7 +59,7 @@ class AmqpConnect {
 
     async _bindQueue(routerConfig) {
         this.routerConfigList.push(routerConfig);
-        await this.ch.assertQueue(routerConfig.config.queueName, {durable: false, autoDelete: true});
+        await this.ch.assertQueue(routerConfig.config.queueName, {durable: false, autoDelete: false});
         await this.ch.bindQueue(routerConfig.config.queueName, routerConfig.config.ex, routerConfig.config.routerKey);
 
         this.ch.consume(routerConfig.config.queueName, async(msg) => {
@@ -157,27 +157,6 @@ class AmqpHelper {
                 })
             }
         }
-        /*const amqpConnect = amqpConnectMap.get('admin_service');
-         // 添加监听
-         Object.keys(routers).forEach(routerName => {
-         const router = routers[routerName];
-         if (router.controller) {
-
-         }
-         if (router.config){
-         router.config.o.config.forEach(v => amqpConnect._bindQueue(`admin_service.${routerName}`, 'amq.topic', v));
-
-         }
-
-
-         if (router.validator) {
-
-
-         }
-         console.log(router)
-         });*/
-
-        // coreLog.debug(routers);
 
     }
 
