@@ -50,11 +50,6 @@ class AmqpConnect {
         this.ch = await this.conn.createChannel();
         await this.ch.prefetch(100);
         this.onChannelError();
-        /*try{
-            await this.ch.checkExchange('amq.topic1');
-        }catch (e){
-
-        }*/
     }
 
     async _bindQueue(routerConfig) {
