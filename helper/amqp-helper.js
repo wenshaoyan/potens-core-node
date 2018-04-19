@@ -54,7 +54,7 @@ class AmqpConnect {
 
     async _bindQueue(routerConfig) {
         this.routerConfigList.push(routerConfig);
-        await this.ch.assertQueue(routerConfig.config.queueName, {durable: false, autoDelete: false});
+        await this.ch.assertQueue(routerConfig.config.queueName, {durable: false, autoDelete: true});
         await this.ch.bindQueue(routerConfig.config.queueName, routerConfig.config.ex, routerConfig.config.routerKey);
 
         this.ch.consume(routerConfig.config.queueName, async(msg) => {
@@ -63,7 +63,7 @@ class AmqpConnect {
             if (consumeResult.code > 0) {
                 PotensX.get('core_log').warn(consumeResult.message);
             }
-            // 如果为rpc请求 怎进行响应
+            // 如果为rpc请求 则进行响应
             if (msg.properties.correlationId !== undefined
                 &&
                 msg.properties.replyTo !== undefined
@@ -129,8 +129,6 @@ class AmqpHelper {
             if (consume_config && consume_config.router_dir) {
                 CoreError.isStringNotNull(consume_config.router_dir, `rabbitmq.${name}.consume_config.router_dir not a string`);
                 CoreError.isStringNotNull(consume_config.default_ex, `rabbitmq.${name}.consume_config.default_ex not a string`);
-                CoreError.isBool(consume_config.default_sync, `rabbitmq.${name}.consume_config.default_ex not a boolean`);
-
                 let list = [projectDir];
                 list = list.concat(consume_config.router_dir.split('.'));
 
@@ -138,7 +136,6 @@ class AmqpHelper {
                 CoreError.isArray(pathList, `loadDirFiles error! path=${path.join(...list)} not exist`);
                 const routerBean = new RouterBean(pathList, consume_config.router_dir, {
                     ex: consume_config.default_ex,
-                    sync: consume_config.default_sync
                 });
 
 

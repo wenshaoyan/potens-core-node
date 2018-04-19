@@ -123,7 +123,7 @@ Object.defineProperty(exports, 'Application', {
 // exports Application end
 
 // exports Call start
-const {getThrift,  basicSendMail} = require('./util/start-service-util');
+const {getThrift, basicSendMail} = require('./util/start-service-util');
 const call = {};
 Object.defineProperty(call, 'getThrift', {
     enumerable: true,

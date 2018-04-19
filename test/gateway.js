@@ -48,11 +48,9 @@ const serviceConfig = {
                 "consume_config": {
                     "router_dir": "test.router",
                     "default_ex": "amq.topic",
-                    "default_sync": false,
                 }
             }
         }
-
     }
 };
 const {Application} = require('../index');
