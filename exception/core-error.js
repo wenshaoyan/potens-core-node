@@ -91,6 +91,9 @@ class CoreError extends Error {
         }
         throw new CoreError(message, 9);
     }
+    static paramsError(message) {
+        throw new CoreError(message, 10);
+    }
 
 }
 

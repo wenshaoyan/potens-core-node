@@ -13,15 +13,13 @@ class CoreException extends Error{
             this._code = obj.code;
             this._serverName = obj.serverName;
             this._message = obj.message;
-            this._serverName = obj.serverName;
             this._methodName = obj.methodName;
             this._fullMessage = obj.fullMessage;
-            this._type = type;
+            this._type = obj.type;
         }else{
             this._code = code;
             this._serverName = serverName;
             this._message = message;
-            this._serverName = serverName;
             this._methodName = methodName;
             this._fullMessage = fullMessage;
             this._type = type;
@@ -75,6 +73,26 @@ class CoreException extends Error{
 
     set fullMessage(value) {
         this._fullMessage = value;
+    }
+    toJson() {
+        return {
+            code: this.code,
+            serverName: this.serverName,
+            message: this.message,
+            methodName: this.methodName,
+            fullMessage: this.fullMessage,
+            type: this.type,
+        }
+    }
+    toString(){
+        return JSON.stringify({
+            code: this.code,
+            serverName: this.serverName,
+            message: this.message,
+            methodName: this.methodName,
+            fullMessage: this.fullMessage,
+            type: this.type,
+        });
     }
 }
 

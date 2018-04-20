@@ -34,20 +34,12 @@ const serviceConfig = {
                 "protocol": "amqp",
                 "hostname": "120.92.108.221",
                 "port": "5672",
-                "username": "admin-project",
-                "password": "314106",
+                "username": "gateway",
+                "password": "123456",
                 "vhost": "/gateway",
-            },
-            "admin_service": {
-                "protocol": "amqp",
-                "hostname": "120.92.108.221",
-                "port": "5672",
-                "username": "admin-project",
-                "password": "314106",
-                "vhost": "/service/admin",
                 "consume_config": {
                     "router_dir": "test.router",
-                    "default_ex": "amq.topic",
+                    "default_ex": "admin.topic",
                 }
             }
         }
@@ -65,7 +57,7 @@ const {Application} = require('../index');
 
 
 process.on('exit',function(code){
-    exit(); // 释放连接
+    // exit(); // 释放连接
     logger.error(code);
 
 });

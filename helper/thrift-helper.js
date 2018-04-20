@@ -44,7 +44,7 @@ const Server = (function () {
             this._name = '';
             this._pool = null;
             this[_poolUuid] = new Date().getTime() + Math.floor(Math.random() * 1000);
-            _poolTagObject[this[_poolUuid]] = {}
+            _poolTagObject[this[_poolUuid]] = {};
             this._ProxyClient = function () {
 
             };

@@ -6,9 +6,9 @@ const config = {
     "protocol": "amqp",
     "hostname": "120.92.108.221",
     "port": "5672",
-    "username": "admin-project",
-    "password": "314106",
-    "vhost": "/service/admin",
+    "username": "gateway",
+    "password": "123456",
+    "vhost": "/gateway",
     "ssl": {
         "enabled": false
     }
@@ -26,7 +26,7 @@ const q = 'user.users';
         console.log('==============', error)
     });
     const data = {"params":{"a":1},"query":{},"body":{},"call_chain":[],"id":"req-1"};
-    await ch.publish('amq.topic', 'get.v1.users', Buffer.from(JSON.stringify(data)));
+    await ch.publish('admin.topic', 'get.v1.users', Buffer.from(JSON.stringify(data)));
 
 
     const corrId = (uuid++)+'';
@@ -36,7 +36,9 @@ const q = 'user.users';
         }
     }
 
-    const {queue} = await ch.assertQueue('', {exclusive: true});
+    const {queue} = await ch.assertQueue('rpc_111', {exclusive: true});
+    console.log(queue);
+
     await ch.consume(queue, maybeAnswer, {noAck: true});
 
     // setInterval(()=> {

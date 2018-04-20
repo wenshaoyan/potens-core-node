@@ -5,19 +5,25 @@
 'use strict';
 const amqpConnectMap = new Map();
 const CoreError = require('../exception/core-error');
-const {loadDirFiles} = require('../util/sys-util');
+const CoreException = require('../exception/core-exception');
+const {loadDirFiles, JSONParse, randomWord} = require('../util/sys-util');
 const RouterBean = require('../bean/router');
 const path = require('path');
 const Context = require('../bean/context');
 const PotensX = require('../potens-x');
+PotensX.set('amqpConnectMap', amqpConnectMap);
 
 let amqp = null;
+
 class AmqpConnect {
     constructor(config) {
         this._config = config;
         this._conn = null;
         this._ch = null;
         this.routerConfigList = [];
+        this.rpc_id = 0;
+        this._rpc_queue = null;
+        this.rpc_callback = {};
 
     }
 
@@ -45,24 +51,70 @@ class AmqpConnect {
         this._ch = value;
     }
 
+
+    get rpc_queue() {
+        return this._rpc_queue;
+    }
+
+    set rpc_queue(value) {
+        this._rpc_queue = value;
+    }
+
+    static checkMessage(message) {
+        if (message === null || message === undefined) {
+            message = {};
+        }
+        CoreError.isJson(message, 'pubSendTopic: params message not is json');
+        return JSON.stringify(message);
+    }
+
     async connect() {
         this.conn = await amqp.connect(this.config);
         this.ch = await this.conn.createChannel();
         await this.ch.prefetch(100);
         this.onChannelError();
+        const rpcQueue = await this.ch.assertQueue('', {exclusive: true});
+        this.rpc_queue = rpcQueue.queue;
+        this.ch.consume(this.rpc_queue, (msg) => {
+            const currentId = msg.properties.correlationId;
+            if (currentId in this.rpc_callback) {
+                let content = msg.content.toString();
+                const jsonContent = JSONParse(content);
+                let err = null,result = undefined;
+                if (jsonContent === false) {
+                    err = new CoreException({
+                        code: 400,
+                        type: 'json-parse',
+                        serverName: PotensX.get('server_name'),
+                        message: `content=${content} not is json`
+                    });
+                } else if (jsonContent.status !== 200) {
+                    err = new CoreException({
+                        code: jsonContent.status,
+                        type: 'res-status',
+                        serverName: PotensX.get('server_name'),
+                        message: jsonContent.message
+                    });
+                } else {
+                    result = jsonContent.body;
+                }
+                this.rpc_callback[currentId](err, result);
+            } else {
+                PotensX.get('core_log').debug(`rpc_consume: not found currentId=${currentId} in rpc_callback`);
+            }
+
+        }, {noAck: true});
     }
 
     async _bindQueue(routerConfig) {
+        await this.ch.assertExchange(routerConfig.config.ex, 'topic', {durable: false});
         this.routerConfigList.push(routerConfig);
         await this.ch.assertQueue(routerConfig.config.queueName, {durable: false, autoDelete: true});
         await this.ch.bindQueue(routerConfig.config.queueName, routerConfig.config.ex, routerConfig.config.routerKey);
 
-        this.ch.consume(routerConfig.config.queueName, async(msg) => {
+        this.ch.consume(routerConfig.config.queueName, async (msg) => {
             const ctx = new Context(routerConfig);
-            const consumeResult = await ctx.consume(msg.content);
-            if (consumeResult.code > 0) {
-                PotensX.get('core_log').warn(consumeResult.message);
-            }
+            await ctx.consume(msg.content);
             // 如果为rpc请求 则进行响应
             if (msg.properties.correlationId !== undefined
                 &&
@@ -74,33 +126,51 @@ class AmqpConnect {
             }
             this.ch.ack(msg);
             ctx.endTime = new Date().getTime();
-
-            PotensX.get('core_log').info(`routerKey=${routerConfig.config.routerKey} ${ctx.response.status} ${ctx.endTime-ctx.startTime}ms`)
+            if (ctx.response.status === 200) {
+                PotensX.get('core_log').info(`routerKey=${routerConfig.config.routerKey} ${ctx.response.status} ${ctx.endTime - ctx.startTime}ms`)
+            } else {
+                PotensX.get('core_log').error(`routerKey=${routerConfig.config.routerKey},error_message=${ctx.response.error_message} ${ctx.response.status} ${ctx.endTime - ctx.startTime}ms`)
+            }
         }, {noAck: false});
 
     }
 
-    async pubTopic(routerKey, message) {
-        if (message === undefined || message === undefined) {
-            message = {};
-        }
-        CoreError.isJson(message, 'pubSendTopic: params message not is json');
+    async pubTopic(ex, routerKey, message) {
+        AmqpConnect.checkMessage(message);
+        await this.ch.publish(ex, routerKey, Buffer.from(message));
+    }
+
+    async rpcTopic(ex, routerKey, message) {
+        AmqpConnect.checkMessage(message);
+        message.id = `req-${randomWord(true, 10, 10)}`;
         message = JSON.stringify(message);
-        await this.ch.publish('amq.topic', routerKey, Buffer.from(message));
+        const corrId = (this.rpc_id++) + '';
+
+        /*setTimeout(() => {
+            this.rpc_callback[corrId]();
+        },5000);*/
+        const p = new Promise((resolve, reject) => {
+            this.rpc_callback[corrId] = function (err, msg) {
+                if (err) reject(err);
+                else resolve(msg);
+            };
+        });
+        await this.ch.publish(ex, routerKey, Buffer.from(message), {
+            correlationId: corrId, replyTo: this.rpc_queue
+        });
+        return p;
     }
 
-    async rpcTopic(routerKey, message) {
-
-    }
     onChannelError() {
-        this.ch.on('error',  (error) => {
-            PotensX.get('core_log').error('111',error);
+        this.ch.on('error', (error) => {
+            PotensX.get('core_log').error('111', error);
         });
         this.ch.on('close', (error) => {
             this.channelReconnection();
-            PotensX.get('core_log').error('222',error);
+            PotensX.get('core_log').error('222', error);
         });
     }
+
     // channel进行重连
     async channelReconnection() {
         this.ch = await this.conn.createChannel();
@@ -112,11 +182,13 @@ class AmqpConnect {
         PotensX.get('core_log').info('ch reconnection Success');
 
     }
-    close(){
+
+    close() {
         this.conn.close();
     }
 
 }
+
 class AmqpHelper {
     static async start(allConfig) {
         const projectDir = PotensX.get('project_dir');
@@ -152,18 +224,8 @@ class AmqpHelper {
 
     }
 
-    static getConnect(name) {
-        if (amqpConnectMap.has(name)) {
-            return amqpConnectMap.get(name);
-        } else {
-            throw new CoreError(`${name} not in rabbitmq.connect`, 100);
-        }
-    }
-    static getAllConnectMap(){
-        return amqpConnectMap;
-    }
-
 }
+
 module.exports = AmqpHelper;
 
 
