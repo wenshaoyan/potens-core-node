@@ -47,6 +47,12 @@ const q = 'user.users';
     });
     // },10)
 
+    try{
+        const re = await ch.checkExchange('amq.topic1');
+    }catch (e) {
+        console.log(e);
+
+    }
 
 
 

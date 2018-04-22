@@ -24,6 +24,7 @@ class AmqpConnect {
         this.rpc_id = 0;
         this._rpc_queue = null;
         this.rpc_callback = {};
+        this._checkCh = null;
 
     }
 
@@ -60,6 +61,14 @@ class AmqpConnect {
         this._rpc_queue = value;
     }
 
+    get checkCh() {
+        return this._checkCh;
+    }
+
+    set checkCh(value) {
+        this._checkCh = value;
+    }
+
     static checkMessage(message) {
         if (message === null || message === undefined) {
             message = {};
@@ -71,7 +80,9 @@ class AmqpConnect {
     async connect() {
         this.conn = await amqp.connect(this.config);
         this.ch = await this.conn.createChannel();
+        this.checkCh = await this.conn.createChannel();
         await this.ch.prefetch(100);
+        await this.checkCh.prefetch(100);
         this.onChannelError();
         const rpcQueue = await this.ch.assertQueue('', {exclusive: true});
         this.rpc_queue = rpcQueue.queue;
@@ -134,11 +145,24 @@ class AmqpConnect {
         }, {noAck: false});
 
     }
-
+    async checkExchange(ex){
+        try {
+            await this.checkCh.checkExchange(ex);
+            return true;
+        }catch (e) {
+            return false;
+        }
+    }
     async pubTopic(ex, routerKey, message) {
         AmqpConnect.checkMessage(message);
+        message.id = `req-${randomWord(true, 10, 10)}`;
+        message = JSON.stringify(message);
+        if (!this.checkExchange(ex)) {
+            return false;
+        }
         await this.ch.publish(ex, routerKey, Buffer.from(message));
     }
+
 
     async rpcTopic(ex, routerKey, message) {
         AmqpConnect.checkMessage(message);
@@ -147,14 +171,17 @@ class AmqpConnect {
         const corrId = (this.rpc_id++) + '';
 
         /*setTimeout(() => {
-            this.rpc_callback[corrId]();
-        },5000);*/
+         this.rpc_callback[corrId]();
+         },5000);*/
         const p = new Promise((resolve, reject) => {
             this.rpc_callback[corrId] = function (err, msg) {
                 if (err) reject(err);
                 else resolve(msg);
             };
         });
+        if (!this.checkExchange(ex)) {
+            return false;
+        }
         await this.ch.publish(ex, routerKey, Buffer.from(message), {
             correlationId: corrId, replyTo: this.rpc_queue
         });
@@ -163,24 +190,35 @@ class AmqpConnect {
 
     onChannelError() {
         this.ch.on('error', (error) => {
-            PotensX.get('core_log').error('111', error);
+            if (error.code !== 404) PotensX.get('core_log').error('ch error',error);
         });
-        this.ch.on('close', (error) => {
-            this.channelReconnection();
-            PotensX.get('core_log').error('222', error);
+        this.ch.on('close', () => {
+            this.channelReconnection('ch');
+            PotensX.get('core_log').debug('ch close');
         });
+
+
+        this.checkCh.on('error', (error) => {
+            if (error.code !== 404) PotensX.get('core_log').error('ch error',error);
+        });
+        this.checkCh.on('close', () => {
+            this.channelReconnection('checkCh');
+            PotensX.get('core_log').debug('ch close');
+        });
+
     }
 
     // channel进行重连
-    async channelReconnection() {
-        this.ch = await this.conn.createChannel();
-        await this.ch.prefetch(100);
-        this.onChannelError();
-        this.routerConfigList.forEach(v => {
-            this._bindQueue(v);
-        });
-        PotensX.get('core_log').info('ch reconnection Success');
-
+    async channelReconnection(chname) {
+        this[chname] = await this.conn.createChannel();
+        if (chname === 'ch') {
+            await this.ch.prefetch(100);
+            this.onChannelError();
+            this.routerConfigList.forEach(v => {
+                this._bindQueue(v);
+            });
+            PotensX.get('core_log').debug(`${chname} reconnection Success`);
+        }
     }
 
     close() {
@@ -227,7 +265,3 @@ class AmqpHelper {
 }
 
 module.exports = AmqpHelper;
-
-
-
-

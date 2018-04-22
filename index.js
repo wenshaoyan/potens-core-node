@@ -124,6 +124,7 @@ Object.defineProperty(exports, 'Application', {
 
 // exports Call start
 const {getThrift, basicSendMail} = require('./util/start-service-util');
+const PotensX = require('./potens-x');
 const call = {};
 Object.defineProperty(call, 'getThrift', {
     enumerable: true,
@@ -135,6 +136,14 @@ Object.defineProperty(call, 'basicSendMail', {
     enumerable: true,
     get: function get() {
         return basicSendMail;
+    }
+});
+Object.defineProperty(call, 'getAmqp', {
+    enumerable: true,
+    get: function get() {
+        return function (name) {
+            return PotensX.get('amqpConnectMap').get(name);
+        };
     }
 });
 Object.defineProperty(exports, 'Call', {
