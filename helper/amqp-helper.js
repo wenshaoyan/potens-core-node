@@ -83,7 +83,7 @@ class AmqpConnect {
         this.checkCh = await this.conn.createChannel();
         await this.ch.prefetch(100);
         await this.checkCh.prefetch(100);
-        this.onChannelError();
+        this.onChannelError('init');
         const rpcQueue = await this.ch.assertQueue('', {exclusive: true});
         this.rpc_queue = rpcQueue.queue;
         this.ch.consume(this.rpc_queue, (msg) => {
@@ -188,37 +188,41 @@ class AmqpConnect {
         return p;
     }
 
-    onChannelError() {
-        this.ch.on('error', (error) => {
-            if (error.code !== 404) PotensX.get('core_log').error('ch error',error);
-        });
-        this.ch.on('close', () => {
-            this.channelReconnection('ch');
-            PotensX.get('core_log').debug('ch close');
-        });
-
-
-        this.checkCh.on('error', (error) => {
-            if (error.code !== 404) PotensX.get('core_log').error('ch error',error);
-        });
-        this.checkCh.on('close', () => {
-            this.channelReconnection('checkCh');
-            PotensX.get('core_log').debug('ch close');
-        });
+    onChannelError(name) {
+        if (name === 'init' || name === 'ch') {
+            this.ch.on('error', (error) => {
+                if (error.code !== 404) PotensX.get('core_log').error('ch error',error);
+            });
+            this.ch.on('close', () => {
+                this.channelReconnection('ch');
+                PotensX.get('core_log').debug('ch close');
+            });
+        }
+        if (name === 'init' || name === 'checkCh') {
+            this.checkCh.on('error', (error) => {
+                if (error.code !== 404) PotensX.get('core_log').error('ch error', error);
+            });
+            this.checkCh.on('close', () => {
+                this.channelReconnection('checkCh');
+                PotensX.get('core_log').debug('ch close');
+            });
+        }
 
     }
 
     // channel进行重连
     async channelReconnection(chname) {
         this[chname] = await this.conn.createChannel();
+        await this.ch.prefetch(100);
+        this.onChannelError(chname);
+
         if (chname === 'ch') {
-            await this.ch.prefetch(100);
-            this.onChannelError();
             this.routerConfigList.forEach(v => {
                 this._bindQueue(v);
             });
-            PotensX.get('core_log').debug(`${chname} reconnection Success`);
         }
+        PotensX.get('core_log').debug(`${chname} reconnection Success`);
+
     }
 
     close() {
