@@ -92,7 +92,7 @@ class AmqpConnect {
             if (currentId in this.rpc_callback) {
                 let content = msg.content.toString();
                 const jsonContent = JSONParse(content);
-                let err = null,result = undefined;
+                let err = null, result = undefined;
                 if (jsonContent === false) {
                     err = new CoreException({
                         code: 400,
@@ -124,7 +124,7 @@ class AmqpConnect {
         await this.ch.assertQueue(routerConfig.config.queueName, {durable: false, autoDelete: true});
         await this.ch.bindQueue(routerConfig.config.queueName, routerConfig.config.ex, routerConfig.config.routerKey);
 
-        this.ch.consume(routerConfig.config.queueName, async (msg) => {
+        this.ch.consume(routerConfig.config.queueName, async(msg) => {
             const ctx = new Context(routerConfig);
             await ctx.consume(msg.content);
             // 如果为rpc请求 则进行响应
@@ -146,69 +146,50 @@ class AmqpConnect {
         }, {noAck: false});
 
     }
-    async checkExchange(ex){
+
+    async checkExchange(ex) {
         try {
             await this.checkCh.checkExchange(ex);
             return true;
-        }catch (e) {
+        } catch (e) {
             return false;
         }
-    }
-    pubTopic(ex, routerKey, message) {
-        return this._send(ex, routerKey, message, true);
     }
 
-    async rpcTopic(ex, routerKey, message) {
-        // 推送消息的ch
-        const sendCh = await this.conn.createConfirmChannel();
-        AmqpConnect.checkMessage(message);
-        const reqId = `req-${randomWord(true, 10, 10)}`;
-        message.id = reqId;
-        message = JSON.stringify(message);
-        const corrId = (this.rpc_id++) + '';
-        if (!this.checkExchange(ex)) {
-            return false;
-        }
-        sendCh.on('return', (msg) => {
-            sendCh.close();
-            const logger = PotensX.get('core_log');
-            const reqId = msg.properties.headers.id;
-            if (!reqId) {
-                logger.warn(`publish event return: msg.headers.id not a string`);
-            } else if (!this.send_callback[reqId]) {
-                logger.error(`publish event return: msg.headers.id not in publish_callback`);
-            } else {
-                this.send_callback[reqId]({
-                    code: 404,
-                    type: 'router',
-                    serverName: PotensX.get('server_name'),
-                    message: `ex=${msg.fields.exchange}, routerKey=${msg.fields.routingKey},not found routerKey`
-                }, null);
+    pubTopic(ex, routerKey, message, option) {
+        option = this._getSendArgsOption(option);
+        return this._send(ex, routerKey, message, true, option);
+    }
+
+    rpcTopic(ex, routerKey, message, option) {
+        option = this._getSendArgsOption(option);
+        return this._send(ex, routerKey, message, false, option);
+    }
+
+    // 检查调用发送消息的函数参入的option是否合法 不合法则采用配置中的默认值
+    _getSendArgsOption(option) {
+        const argsOption = {};
+        if (typeof option === 'object') {
+            if (option.publish_timeout > 0 && option.publish_timeout < 30000) {
+                argsOption.publish_timeout = option.publish_timeout;
             }
-        });
-        const p = new Promise((resolve, reject) => {
-            this.send_callback[reqId] = function (err, msg) {
-                if (err) reject(err);
-                else resolve(msg);
-            };
-            this.rpc_callback[corrId] = function (err, msg) {
-                if (err) reject(err);
-                else resolve(msg);
-            };
-        });
-
-        sendCh.publish(ex, routerKey, Buffer.from(message), {
-            correlationId: corrId, replyTo: this.rpc_queue,
-            headers: {id: reqId},
-            mandatory: true
-        });
-        return p;
+            if (option.rpc_reply_timeout > 0 && option.rpc_reply_timeout < 30000) {
+                argsOption.rpc_reply_timeout = option.rpc_reply_timeout;
+            }
+        } else {
+            argsOption.publish_timeout = this.config.default_config.publish_timeout;
+            argsOption.rpc_reply_timeout = this.config.default_config.rpc_reply_timeout;
+        }
+        return argsOption;
     }
 
-    async _send(ex, routerKey, message, sync){
+    // 统一发送消息的send函数
+    async _send(ex, routerKey, message, sync, option) {
         let corrId;
+        let publishTimer;
+        let rpcReplyTimer;
         const reqId = `req-${randomWord(true, 10, 10)}`;
-        const options =  {
+        const options = {
             headers: {id: reqId},
             mandatory: true
         };
@@ -226,48 +207,90 @@ class AmqpConnect {
         if (!await this.checkExchange(ex)) {
             return false;
         }
-        sendCh.on('return', (msg) => {
+        const sendResultCallback = (errCode, reqId, ex, routerKey) => {
             sendCh.close();
             const logger = PotensX.get('core_log');
-            const reqId = msg.properties.headers.id;
-            if (!reqId) {
-                logger.warn(`publish event return: msg.headers.id not a string`);
-            } else if (!this.send_callback[reqId]) {
-                logger.error(`publish event return: msg.headers.id not in publish_callback`);
+            const errorMessage = {
+                type: 'rabbitmq',
+                serverName: PotensX.get('server_name'),
+            };
+            if (!this.send_callback[reqId]) {
+                logger.error(`ex=${ex}, routerKey=${routerKey}, msg.headers.id not in publish_callback`);
+            } else if (errCode === 404) {
+                errorMessage.type = 'router';
+                errorMessage.code = errCode;
+                errorMessage.message = `ex=${ex}, routerKey=${routerKey}, not found routerKey`;
+                this.send_callback[reqId](errorMessage, null);
+            } else if (errCode === 903) {
+                errorMessage.code = errCode;
+                errorMessage.message = `ex=${ex}, routerKey=${routerKey}, rabbitmq recv error`;
+                this.send_callback[reqId](errorMessage, null);
+            } else if (errCode === 1000) {
+                errorMessage.code = errCode;
+                errorMessage.message = `ex=${ex}, routerKey=${routerKey}, rabbitmq publish timeout`;
+                this.send_callback[reqId](errorMessage, null);
+            } else if (errCode) {
+                errorMessage.code = errCode;
+                errorMessage.message = `ex=${ex}, routerKey=${routerKey}, unknown error`;
+                this.send_callback[reqId](errorMessage, null);
             } else {
-                this.send_callback[reqId]({
-                    code: 404,
-                    type: 'router',
-                    serverName: PotensX.get('server_name'),
-                    message: `ex=${msg.fields.exchange}, routerKey=${msg.fields.routingKey},not found routerKey`
-                }, null);
+                this.send_callback[reqId](null, true);
             }
-        });
+        };
+        sendCh.on('return', () => sendResultCallback(404, reqId, ex, routerKey));
         const p = new Promise((resolve, reject) => {
             this.send_callback[reqId] = function (err, msg) {
-                if (err) reject(err);
+                clearTimeout(publishTimer);
+                if (err) reject(new CoreException(err));
                 else resolve(msg);
             };
             if (!sync) {
                 this.rpc_callback[corrId] = function (err, msg) {
-                    if (err) reject(err);
+                    clearTimeout(rpcReplyTimer);
+                    if (err) reject(new CoreException(err));
                     else resolve(msg);
                 }
-            }
-        });
-        sendCh.publish(ex, routerKey, Buffer.from(message), options,function (err, ok) {
-            if (err) {
-                this.send_callback[reqId]();
 
-            } else {
             }
         });
+        publishTimer = setTimeout(() => {
+            sendResultCallback(1000, reqId, ex, routerKey);
+        }, option.publish_timeout);
+        if (!sync) {
+            rpcReplyTimer = setTimeout(() => {
+                sendCh.close();
+                if (!this.rpc_callback[corrId]) {
+                    PotensX.get('core_log').error(`ex=${ex}, routerKey=${routerKey}, msg.headers.id not in rpc_callback`);
+                } else {
+                    this.rpc_callback[corrId]({
+                        code: 1001,
+                        type: 'rpc_reply_timeout',
+                        serverName: PotensX.get('server_name'),
+                        message: `ex=${ex}, routerKey=${routerKey},  rpc reply timeout`
+                    }, null);
+                }
+
+            }, option.rpc_reply_timeout);
+        }
+
+        sendCh.publish(ex, routerKey, Buffer.from(message), options, function (err, ok) {
+            if (err) {
+                sendResultCallback(903, reqId, ex, routerKey);
+            } else if (sync) {
+                sendResultCallback(null, reqId, ex, routerKey);
+            } else {    // 清除rpc send的定时器
+                clearTimeout(publishTimer);
+            }
+        });
+
+
         return p;
     }
+
     onChannelError(name) {
         if (name === 'init' || name === 'ch') {
             this.ch.on('error', (error) => {
-                if (error.code !== 404) PotensX.get('core_log').error('ch error',error);
+                if (error.code !== 404) PotensX.get('core_log').error('ch error', error);
             });
             this.ch.on('close', () => {
                 this.channelReconnection('ch');
@@ -312,6 +335,29 @@ class AmqpHelper {
         const projectDir = PotensX.get('project_dir');
         if (!amqp) amqp = require('amqplib');
         for (let name in allConfig.connects) {
+            const current = allConfig.connects[name];
+            const default_config = {
+                "publish_timeout": 3000,
+                "rpc_reply_timeout": 3000,
+            };
+
+            if (current.default_config) {
+                if (current.default_config.publish_timeout) {
+                    if (current.default_config.publish_timeout > 0 && current.default_config.publish_timeout < 30000) {
+                        default_config.publish_timeout = current.default_config.publish_timeout;
+                    } else {
+                        PotensX.get('core_log').warn(`rabbitmq.${name}.default_config.publish_timeout=${current.default_config.publish_timeout}. must be number and 0<value<30000,The current will use the default value=3000`);
+                    }
+                }
+                if (current.default_config.rpc_reply_timeout) {
+                    if (current.default_config.rpc_reply_timeout > 0 && current.default_config.rpc_reply_timeout < 30000) {
+                        default_config.rpc_reply_timeout = current.default_config.rpc_reply_timeout;
+                    } else {
+                        PotensX.get('core_log').warn(`rabbitmq.${name}.default_config.rpc_reply_timeout=${current.default_config.rpc_reply_timeout}. must be number and 0<value<30000,The current will use the default value=3000`);
+                    }
+                }
+            }
+            current.default_config = default_config;
             const amqpConnect = new AmqpConnect(allConfig.connects[name]);
             amqpConnectMap.set(name, amqpConnect);
             await amqpConnect.connect();

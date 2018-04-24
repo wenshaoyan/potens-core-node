@@ -35,7 +35,7 @@ const q = 'user.users';
     const re = await ch.publish('admin.gateway', 'get.v1.users', Buffer.from(JSON.stringify(data)),{mandatory: true,headers:{
         a:1
         }});
-    console.log(re)
+    console.log('================',re)
 
 
     /*const corrId = (uuid++)+'';

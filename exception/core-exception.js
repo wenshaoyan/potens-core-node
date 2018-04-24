@@ -10,70 +10,23 @@ class CoreException extends Error{
         this.name = 'CoreException';
         if (typeof code === 'object') {
             const obj = code;
-            this._code = obj.code;
-            this._serverName = obj.serverName;
-            this._message = obj.message;
-            this._methodName = obj.methodName;
-            this._fullMessage = obj.fullMessage;
-            this._type = obj.type;
+            this.code = obj.code;
+            this.serverName = obj.serverName;
+            this.message = obj.message;
+            this.methodName = obj.methodName;
+            this.fullMessage = obj.fullMessage;
+            this.type = obj.type;
         }else{
-            this._code = code;
-            this._serverName = serverName;
-            this._message = message;
-            this._methodName = methodName;
-            this._fullMessage = fullMessage;
-            this._type = type;
+            this.code = code;
+            this.serverName = serverName;
+            this.message = message;
+            this.methodName = methodName;
+            this.fullMessage = fullMessage;
+            this.type = type;
         }
 
     }
 
-    get code() {
-        return this._code;
-    }
-
-    set code(value) {
-        this._code = value;
-    }
-
-    get type() {
-        return this._type;
-    }
-
-    set type(value) {
-        this._type = value;
-    }
-
-    get message() {
-        return this._message;
-    }
-
-    set message(value) {
-        this._message = value;
-    }
-
-    get serverName() {
-        return this._serverName;
-    }
-
-    set serverName(value) {
-        this._serverName = value;
-    }
-
-    get methodName() {
-        return this._methodName;
-    }
-
-    set methodName(value) {
-        this._methodName = value;
-    }
-
-    get fullMessage() {
-        return this._fullMessage;
-    }
-
-    set fullMessage(value) {
-        this._fullMessage = value;
-    }
     toJson() {
         return {
             code: this.code,

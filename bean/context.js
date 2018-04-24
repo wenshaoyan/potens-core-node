@@ -39,10 +39,15 @@ const CoreException = require('../exception/core-exception');
  8 开头  (请求发生自动捕获的异常)
  800 未捕获的未知异常
 
- 9 框架解析错误
+ 9 框架错误
  900 配置错误 rabbitm.connect.gateway不存在
  902 uri 不符合规范
+ 903 rabbitmq接受失败 publish后的回调有错误
 
+ 10 开头各种超时
+
+ 1000 rabbitmq publish 超时
+ 1001 rabbitmq rpc回复超时
 
  */
 

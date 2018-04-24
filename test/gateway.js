@@ -40,6 +40,10 @@ const serviceConfig = {
                 "consume_config": {
                     "router_dir": "test.router",
                     "default_ex": "admin.gateway",
+                },
+                "default_config": {
+                    "publish_timeout": 3000,
+                    "rpc_reply_timeout": 3000,
                 }
             }
         }
@@ -65,7 +69,8 @@ process.on('exit',function(code){
     logger.error(code);
 
 });
-process.on('uncaughtException',function(){
+process.on('uncaughtException',function(err){
+    console.log(err)
     process.exit(1000);
 });
 process.on('SIGINT',function () {
