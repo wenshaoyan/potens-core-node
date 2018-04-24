@@ -24,6 +24,7 @@ class AmqpConnect {
         this.rpc_id = 0;
         this._rpc_queue = null;
         this.rpc_callback = {};
+        this.send_callback = {};
         this._checkCh = null;
 
     }
@@ -153,41 +154,116 @@ class AmqpConnect {
             return false;
         }
     }
-    async pubTopic(ex, routerKey, message) {
+    pubTopic(ex, routerKey, message) {
+        return this._send(ex, routerKey, message, true);
+    }
+
+    async rpcTopic(ex, routerKey, message) {
+        // 推送消息的ch
+        const sendCh = await this.conn.createConfirmChannel();
         AmqpConnect.checkMessage(message);
-        message.id = `req-${randomWord(true, 10, 10)}`;
+        const reqId = `req-${randomWord(true, 10, 10)}`;
+        message.id = reqId;
         message = JSON.stringify(message);
+        const corrId = (this.rpc_id++) + '';
         if (!this.checkExchange(ex)) {
             return false;
         }
-        await this.ch.publish(ex, routerKey, Buffer.from(message));
-    }
-
-
-    async rpcTopic(ex, routerKey, message) {
-        AmqpConnect.checkMessage(message);
-        message.id = `req-${randomWord(true, 10, 10)}`;
-        message = JSON.stringify(message);
-        const corrId = (this.rpc_id++) + '';
-
-        /*setTimeout(() => {
-         this.rpc_callback[corrId]();
-         },5000);*/
+        sendCh.on('return', (msg) => {
+            sendCh.close();
+            const logger = PotensX.get('core_log');
+            const reqId = msg.properties.headers.id;
+            if (!reqId) {
+                logger.warn(`publish event return: msg.headers.id not a string`);
+            } else if (!this.send_callback[reqId]) {
+                logger.error(`publish event return: msg.headers.id not in publish_callback`);
+            } else {
+                this.send_callback[reqId]({
+                    code: 404,
+                    type: 'router',
+                    serverName: PotensX.get('server_name'),
+                    message: `ex=${msg.fields.exchange}, routerKey=${msg.fields.routingKey},not found routerKey`
+                }, null);
+            }
+        });
         const p = new Promise((resolve, reject) => {
+            this.send_callback[reqId] = function (err, msg) {
+                if (err) reject(err);
+                else resolve(msg);
+            };
             this.rpc_callback[corrId] = function (err, msg) {
                 if (err) reject(err);
                 else resolve(msg);
             };
         });
-        if (!this.checkExchange(ex)) {
-            return false;
-        }
-        await this.ch.publish(ex, routerKey, Buffer.from(message), {
-            correlationId: corrId, replyTo: this.rpc_queue
+
+        sendCh.publish(ex, routerKey, Buffer.from(message), {
+            correlationId: corrId, replyTo: this.rpc_queue,
+            headers: {id: reqId},
+            mandatory: true
         });
         return p;
     }
 
+    async _send(ex, routerKey, message, sync){
+        let corrId;
+        const reqId = `req-${randomWord(true, 10, 10)}`;
+        const options =  {
+            headers: {id: reqId},
+            mandatory: true
+        };
+        if (!sync) {
+            corrId = (this.rpc_id++) + '';
+            options.correlationId = corrId;
+            options.replyTo = this.rpc_queue;
+        }
+        // 推送消息的ch
+        const sendCh = await this.conn.createConfirmChannel();
+        AmqpConnect.checkMessage(message);
+
+        message.id = reqId;
+        message = JSON.stringify(message);
+        if (!await this.checkExchange(ex)) {
+            return false;
+        }
+        sendCh.on('return', (msg) => {
+            sendCh.close();
+            const logger = PotensX.get('core_log');
+            const reqId = msg.properties.headers.id;
+            if (!reqId) {
+                logger.warn(`publish event return: msg.headers.id not a string`);
+            } else if (!this.send_callback[reqId]) {
+                logger.error(`publish event return: msg.headers.id not in publish_callback`);
+            } else {
+                this.send_callback[reqId]({
+                    code: 404,
+                    type: 'router',
+                    serverName: PotensX.get('server_name'),
+                    message: `ex=${msg.fields.exchange}, routerKey=${msg.fields.routingKey},not found routerKey`
+                }, null);
+            }
+        });
+        const p = new Promise((resolve, reject) => {
+            this.send_callback[reqId] = function (err, msg) {
+                if (err) reject(err);
+                else resolve(msg);
+            };
+            if (!sync) {
+                this.rpc_callback[corrId] = function (err, msg) {
+                    if (err) reject(err);
+                    else resolve(msg);
+                }
+            }
+        });
+        sendCh.publish(ex, routerKey, Buffer.from(message), options,function (err, ok) {
+            if (err) {
+                this.send_callback[reqId]();
+
+            } else {
+            }
+        });
+        return p;
+    }
     onChannelError(name) {
         if (name === 'init' || name === 'ch') {
             this.ch.on('error', (error) => {

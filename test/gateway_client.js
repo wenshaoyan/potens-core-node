@@ -25,11 +25,20 @@ const q = 'user.users';
     ch.on('error', function (error) {
         console.log('==============', error)
     });
+    ch.on('return', function(msg)  {
+        console.log('没有匹配的routerkey', msg);
+    });
+    ch.on('drain', function(msg) {
+        console.log('===============2');
+    })
     const data = {"params":{"a":1},"query":{},"body":{},"call_chain":[],"id":"req-1"};
-    await ch.publish('admin.topic', 'get.v1.users', Buffer.from(JSON.stringify(data)));
+    const re = await ch.publish('admin.gateway', 'get.v1.users', Buffer.from(JSON.stringify(data)),{mandatory: true,headers:{
+        a:1
+        }});
+    console.log(re)
 
 
-    const corrId = (uuid++)+'';
+    /*const corrId = (uuid++)+'';
     function maybeAnswer(msg) {
         if (msg.properties.correlationId === corrId) {
             console.log(msg.content.toString());
@@ -52,7 +61,7 @@ const q = 'user.users';
     }catch (e) {
         console.log(e);
 
-    }
+    }*/
 
 
 

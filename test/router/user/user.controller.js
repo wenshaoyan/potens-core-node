@@ -5,7 +5,7 @@ module.exports = {
             user_name: 'admin'
         }];
         // ctx.throw(602, 'mememe');
-        const re = await ctx.remoterRpcRouter('gateway', 'admin.topic', 'get.v1.clients', {"params":{},"body":{"a":1}});
+        const re = await ctx.remoterRpcRouter('gateway', 'admin.gateway', 'get.v1.clients', {"params":{},"body":{"a":1}});
         console.log(re);
     }
 };

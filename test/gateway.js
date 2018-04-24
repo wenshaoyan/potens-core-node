@@ -39,16 +39,20 @@ const serviceConfig = {
                 "vhost": "/gateway",
                 "consume_config": {
                     "router_dir": "test.router",
-                    "default_ex": "admin.topic",
+                    "default_ex": "admin.gateway",
                 }
             }
         }
     }
 };
-const {Application} = require('../index');
+const {Application,Call} = require('../index');
 (async function () {
     try {
         await Application.start(serviceConfig);
+        const amqpHelp = Call.getAmqp('gateway');
+        await amqpHelp.pubTopic('admin.gateway', 'get.v1.users', {a:1})
+
+
     }catch (e){
         logger.error(e);
     }
