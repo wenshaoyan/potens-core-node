@@ -239,12 +239,13 @@ class AmqpConnect {
         };
         sendCh.on('return', () => sendResultCallback(404, reqId, ex, routerKey));
         const p = new Promise((resolve, reject) => {
-            this.send_callback[reqId] = function (err, msg) {
+            this.send_callback[reqId] = function (err, msg) {   // sync所有的响应都会回调这个方法 rpc只有在basic.return事件时候才会调用
                 clearTimeout(publishTimer);
+                clearTimeout(rpcReplyTimer);
                 if (err) reject(new CoreException(err));
                 else resolve(msg);
             };
-            if (!sync) {
+            if (!sync) {    // rpc的响应回调事件
                 this.rpc_callback[corrId] = function (err, msg) {
                     clearTimeout(rpcReplyTimer);
                     if (err) reject(new CoreException(err));
@@ -257,7 +258,7 @@ class AmqpConnect {
             sendResultCallback(1000, reqId, ex, routerKey);
         }, option.publish_timeout);
         if (!sync) {
-            rpcReplyTimer = setTimeout(() => {
+            rpcReplyTimer = setTimeout(() => {  // rpc queue的回调方法
                 sendCh.close();
                 if (!this.rpc_callback[corrId]) {
                     PotensX.get('core_log').error(`ex=${ex}, routerKey=${routerKey}, msg.headers.id not in rpc_callback`);
@@ -274,6 +275,8 @@ class AmqpConnect {
         }
 
         sendCh.publish(ex, routerKey, Buffer.from(message), options, function (err, ok) {
+            // sync 和rpc 调用后的出错 则会触发 sendResultCallback。
+            // 如果正常调用sync会进过sendResultCallback进行响应，rpc不进过sendResultCallback 所以需要另外清除publish时候的定时器 进入等待rpc queue响应阶段
             if (err) {
                 sendResultCallback(903, reqId, ex, routerKey);
             } else if (sync) {
