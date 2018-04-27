@@ -1,23 +1,11 @@
-const log4j2 = require('log4j2-node');
 const path = require('path');
 
-log4j2.configure(
-    {
-        "appenders": {
-            "console": {"type": "console","layout": {type:"detail"}}
-        },
-        "categories": {
-            "default": {"appenders": ["console"], "level": "trace"}
-        }
-    }
-);
-const logger = log4j2.getLogger('core');
 const serviceConfig = {
     "project_dir": path.resolve(__dirname, '..'),
     "node_env": "develop",
-    "core_log": logger,
     "server_name": "gateway",
     "service_id": "1.0.0.0",
+    "log_package": "test.config",
     "zk": {     // 必选
         "url": process.env.ZK_URL,
         "register": [
@@ -51,6 +39,7 @@ const serviceConfig = {
     }
 };
 const {Application,Call} = require('../index');
+// const logger = require('log4j2-node').getLogger('core');
 (async function () {
     try {
         await Application.start(serviceConfig);
@@ -59,7 +48,7 @@ const {Application,Call} = require('../index');
 
 
     }catch (e){
-        logger.error(e);
+        // logger.error(e);
     }
 })();
 
@@ -67,7 +56,7 @@ const {Application,Call} = require('../index');
 
 process.on('exit',function(code){
     // exit(); // 释放连接
-    logger.error(code);
+    // logger.error(code);
 
 });
 process.on('uncaughtException',function(err){

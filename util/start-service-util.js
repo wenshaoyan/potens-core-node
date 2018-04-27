@@ -7,21 +7,22 @@ const ThriftHelper = require('../helper/thrift-helper');
 const dict = require('../exception/dict');
 const CoreError = require('../exception/core-error');
 const systemPath = require('path');
-const {JSONParse} = require('./sys-util');
+const {JSONParse, findFileListByPackage} = require('./sys-util');
 const ZkNodeDateBean = require('../bean/zk-node-data-bean');
 const AmqpHelper = require('../helper/amqp-helper');
 const LogDefault = require('./log-default-util');
 let coreLogger = new LogDefault();
 
-const PotensX =require('../potens-x');
+const PotensX = require('../potens-x');
 const getThrift = function (name) {
     return thriftServerMap.get(name);
 };
 const thriftServerMap = new Map();
 let client;
 
-
+let getLogger = LogDefault.getLogger;
 let _basicSendMail;
+
 
 /**
  * 检查参数 并整理配置
@@ -29,19 +30,30 @@ let _basicSendMail;
  */
 const checkParams = (option) => {
     CoreError.isJson(option, 'option not is json');
-    CoreError.isLogger(option.core_log, 'option.core_log not is logger');
-    coreLogger = option.core_log;
+
+
     CoreError.isJson(option.zk, 'option.zk not is json');
     CoreError.isStringNotNull(option.zk.url, 'option.zk.url not is json');
     CoreError.isStringNotNull(option.project_dir, 'option.project_dir not is string');
     CoreError.isStringNotNull(option.server_name, 'option.server_name not is string');
     CoreError.isStringNotNull(option.service_id, 'option.service_id not is string');
+    // 加载log4j2的日志配置
+    if (option.log_package === undefined) option.log_package = 'config';
 
-
-    PotensX.set('core_log', option.core_log);
+    const fileResult = findFileListByPackage(option.project_dir, option.log_package, 'log4j2', ['js', 'json']);
+    if (fileResult.data.length === 0) {
+        console.warn(`not find log config: path=${fileResult.path}`);
+    } else {
+        const logModule = require('log4j2-node');
+        logModule.configure(require(fileResult.data[0]));
+        getLogger = logModule.getLogger;
+        coreLogger = logModule.getLogger('core');
+    }
+    PotensX.set('core_log', coreLogger);
     PotensX.set('project_dir', option.project_dir);
     PotensX.set('server_name', option.server_name);
     PotensX.set('service_id', option.service_id);
+    PotensX.set('getLogger', getLogger);
 
 
     const defaultThrift = {
@@ -370,7 +382,6 @@ const start = async(options) => {
     const IS_RM = await startRabbitMq(options);
     const ERM_TIME = new Date().getTime();
     if (IS_RM) coreLogger.info(`startRabbitMq complete,consumption time ${ERM_TIME - SRM_TIME}ms`);
-
 
 
 };

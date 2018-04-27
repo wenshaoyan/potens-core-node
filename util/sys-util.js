@@ -75,6 +75,47 @@ class SysUtil {
     }
 
     /**
+     * 找到一个project_dir指定package下的所有文件
+     * @param project_dir       项目目录
+     * @param packagePath       包路径
+     * @param fileName          找指定包下的指定文件 可以不指定后缀(非必须填)
+     * @param suffix            后缀 可以为string|list|undefined
+     */
+    static findFileListByPackage(project_dir, packagePath, fileName, suffix) {
+
+        if (typeof project_dir !== 'string') throw new Error(`project_dir =${project_dir} not is string`);
+        if (typeof packagePath !== 'string') throw new Error(`packagePath =${packagePath} not is string`);
+        packagePath = packagePath.replace(/\./g, path.sep);
+
+        const absolutePackagePath = path.join(project_dir, packagePath);
+        let stats = fs.statSync(absolutePackagePath);
+        if (!stats.isDirectory()) throw new Error(`${absolutePackagePath} not is dir`);
+        const list = SysUtil.loadDirFiles(absolutePackagePath);
+        const result = [];
+        if (typeof fileName === 'string') {
+            list.forEach(v => {
+                if (suffix === undefined) {
+                    const filePath = path.join(absolutePackagePath, fileName);
+                    if (v.substring(0, filePath.length) === filePath) result.push(v);
+                } else if (typeof suffix === 'string') {
+                    const filePath = path.join(absolutePackagePath, fileName) + '.' + suffix;
+                    if (filePath === v) result.push(v);
+                } else if (Array.isArray(suffix)) {
+                    for (const v1 of suffix) {
+                        const filePath = path.join(absolutePackagePath, fileName) + '.' + v1;
+                        if (filePath === v) {
+                            result.push(v);
+                        }
+                    }
+                }
+
+            })
+        }
+
+        return {path: absolutePackagePath, data: result};
+    }
+
+    /**
      * @return {boolean}
      */
     static JSONParse(o) {
@@ -127,6 +168,7 @@ class SysUtil {
         }
         return str;
     }
+
     static parseStack(stack, type) {
         const list = [];
         if (typeof stack !== 'string') {

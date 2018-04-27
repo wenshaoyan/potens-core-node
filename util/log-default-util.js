@@ -31,5 +31,8 @@ class LogDefault {
     fatal() {
 
     }
+    static getLogger(){
+        return new LogDefault();
+    }
 }
 module.exports = LogDefault;
