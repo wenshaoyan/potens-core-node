@@ -201,7 +201,7 @@ const Context = (function () {
             this._amqpHelperMap = value;
         }
 
-        localRouter(routerName, routerKey) {
+        localRouter(routerName, routerKey, body) {
 
         }
 

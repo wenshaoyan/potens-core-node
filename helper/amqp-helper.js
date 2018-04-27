@@ -124,7 +124,7 @@ class AmqpConnect {
         await this.ch.assertQueue(routerConfig.config.queueName, {durable: false, autoDelete: true});
         await this.ch.bindQueue(routerConfig.config.queueName, routerConfig.config.ex, routerConfig.config.routerKey);
 
-        this.ch.consume(routerConfig.config.queueName, async(msg) => {
+        this.ch.consume(routerConfig.config.queueName, async (msg) => {
             const ctx = new Context(routerConfig);
             await ctx.consume(msg.content);
             // 如果为rpc请求 则进行响应
@@ -337,6 +337,22 @@ class AmqpHelper {
     static async start(allConfig) {
         const projectDir = PotensX.get('project_dir');
         if (!amqp) amqp = require('amqplib');
+        let routerBean = [];
+        if (allConfig.consume_config && allConfig.consume_config.router_dir) {
+            CoreError.isStringNotNull(allConfig.consume_config.router_dir, `rabbitmq.consume_config.router_dir not a string`);
+            CoreError.isStringNotNull(allConfig.consume_config.default_ex, `rabbitmq.consume_config.default_ex not a string`);
+            let list = [projectDir];
+            list = list.concat(allConfig.consume_config.router_dir.split('.'));
+
+            const pathList = loadDirFiles(path.join(...list));
+            CoreError.isArray(pathList, `loadDirFiles error! path=${path.join(...list)} not exist`);
+            routerBean = new RouterBean(pathList, allConfig.consume_config.router_dir, {
+                ex: allConfig.consume_config.default_ex,
+            });
+
+        }
+
+
         for (let name in allConfig.connects) {
             const current = allConfig.connects[name];
             const default_config = {
@@ -364,29 +380,17 @@ class AmqpHelper {
             const amqpConnect = new AmqpConnect(allConfig.connects[name]);
             amqpConnectMap.set(name, amqpConnect);
             await amqpConnect.connect();
-            const consume_config = allConfig.connects[name].consume_config;
-            if (consume_config && consume_config.router_dir) {
-                CoreError.isStringNotNull(consume_config.router_dir, `rabbitmq.${name}.consume_config.router_dir not a string`);
-                CoreError.isStringNotNull(consume_config.default_ex, `rabbitmq.${name}.consume_config.default_ex not a string`);
-                let list = [projectDir];
-                list = list.concat(consume_config.router_dir.split('.'));
-
-                const pathList = loadDirFiles(path.join(...list));
-                CoreError.isArray(pathList, `loadDirFiles error! path=${path.join(...list)} not exist`);
-                const routerBean = new RouterBean(pathList, consume_config.router_dir, {
-                    ex: consume_config.default_ex,
-                });
-
-
+            // 当前配置了consume_config和对应的connect配置了is_load_consume
+            if (Array.isArray(routerBean) && current.is_load_consume) {
                 Object.keys(routerBean.routerKeys).forEach(ex => {
                     const currentRouterConfigs = routerBean.routerKeys[ex];
                     Object.keys(currentRouterConfigs).forEach(key => {
                         const currentRouterConfig = currentRouterConfigs[key];
                         amqpConnect._bindQueue(currentRouterConfig);
                     })
-
                 })
             }
+
         }
 
     }

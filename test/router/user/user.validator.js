@@ -1,5 +1,5 @@
 module.exports = {
-    test: function (ctx) {
+    test: function ( ) {
 
         return true;
     }

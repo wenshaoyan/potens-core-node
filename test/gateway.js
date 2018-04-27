@@ -29,6 +29,10 @@ const serviceConfig = {
         ]
     },
     "rabbitmq": {
+        "consume_config": {
+            "router_dir": "test.router",
+            "default_ex": "admin.gateway",
+        },
         "connects": {
             "gateway": {
                 "protocol": "amqp",
@@ -37,10 +41,7 @@ const serviceConfig = {
                 "username": "gateway",
                 "password": "123456",
                 "vhost": "/gateway",
-                "consume_config": {
-                    "router_dir": "test.router",
-                    "default_ex": "admin.gateway",
-                },
+                "is_load_consume": true,
                 "default_config": {
                     "publish_timeout": 3000,
                     "rpc_reply_timeout": 3000,

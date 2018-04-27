@@ -133,7 +133,7 @@ class Router{
                     if (v.routerKey in this.routerKeys[v.ex]) {
                         coreLog.warn(`config skip! because ${current['_packageName']}.config='${JSON.stringify(v)}' ex=${v.ex} routerKey is exist.`)
                     } else {
-                        v['queueName'] = `${routerName}.${v.controller}`;
+                        v['queueName'] = `${PotensX.get('server_name')}-${routerName}.${v.controller}`;
                         const currentBody = {
                             config: v,
                             controller: controllerObject[v.controller],
